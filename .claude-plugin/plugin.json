@@ -1,0 +1,15 @@
+{
+  "name": "gdstack",
+  "version": "0.1.0",
+  "description": "George Diab's agent skills: strict code review, verification, writing and the tools he works with. Adapted from Matt Pocock, Lauren Tan (pstack) and Cursor where credited.",
+  "author": {
+    "name": "George Diab",
+    "url": "https://github.com/gdiab"
+  },
+  "repository": "https://github.com/gdiab/gdstack",
+  "license": "MIT",
+  "keywords": ["engineering", "skills", "code-review"],
+  "skills": [
+    "./skills/engineering/thermo-review"
+  ]
+}

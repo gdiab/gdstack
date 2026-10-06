@@ -1,0 +1,16 @@
+{
+  "name": "gdstack",
+  "owner": {
+    "name": "George Diab",
+    "url": "https://github.com/gdiab"
+  },
+  "description": "George Diab's agent skills, as an installable Claude Code plugin.",
+  "plugins": [
+    {
+      "name": "gdstack",
+      "source": "./",
+      "description": "Strict code review, verification, writing and tooling skills.",
+      "category": "engineering"
+    }
+  ]
+}
