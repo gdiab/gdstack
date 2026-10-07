@@ -4,7 +4,7 @@ description: "Run an extremely strict maintainability review of a diff: abstract
 disable-model-invocation: true
 ---
 
-<!-- The section from "# Thermo-Nuclear Code Quality Review" through "## Approval Bar" is Cursor's text, unchanged (MIT, see CREDITS.md and UPSTREAM.md). gdstack's changes live only under "# gdstack additions" so upstream updates merge cleanly. -->
+<!-- The section from "# Thermo-Nuclear Code Quality Review" through "## Approval Bar" is Cursor's text, unchanged (MIT, © 2026 Cursor: see LICENSE.cursor in this folder; version and merge notes in UPSTREAM.md). Everything under "# gdstack additions" and in languages/ is gdstack's. -->
 
 # Thermo-Nuclear Code Quality Review
 

@@ -4,7 +4,7 @@ Skills adapted from other people's work, with where they came from and the exact
 
 | gdstack skill | Source | Upstream version | License |
 |---|---|---|---|
-| `thermo-review` | [`thermo-nuclear-code-quality-review`](https://github.com/cursor/plugins/tree/main/cursor-team-kit/skills/thermo-nuclear-code-quality-review) in Cursor's `cursor-team-kit` | `6e3d2ea` (2026-05-28), verified unchanged at `df58112` (2026-10-05) | MIT, © 2026 Cursor ([licenses/cursor-plugins.LICENSE](licenses/cursor-plugins.LICENSE)) |
+| `thermo-review` | [`thermo-nuclear-code-quality-review`](https://github.com/cursor/plugins/tree/main/cursor-team-kit/skills/thermo-nuclear-code-quality-review) in Cursor's `cursor-team-kit` | `6e3d2ea` (2026-05-28), verified unchanged at `df58112` (2026-10-05) | MIT, © 2026 Cursor ([licenses/cursor-plugins.LICENSE](licenses/cursor-plugins.LICENSE); a copy ships inside the skill folder as `LICENSE.cursor`) |
 
 ## Ideas, not text
 
