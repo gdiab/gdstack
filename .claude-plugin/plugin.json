@@ -8,8 +8,13 @@
   },
   "repository": "https://github.com/gdiab/gdstack",
   "license": "MIT",
-  "keywords": ["engineering", "skills", "code-review"],
+  "keywords": [
+    "engineering",
+    "skills",
+    "code-review"
+  ],
   "skills": [
-    "./skills/engineering/thermo-review"
+    "./skills/engineering/thermo-review",
+    "./skills/tools/chrome-cdp"
   ]
 }
