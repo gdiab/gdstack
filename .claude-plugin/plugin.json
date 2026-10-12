@@ -20,6 +20,8 @@
     "./skills/engineering/verification-before-completion",
     "./skills/engineering/receiving-code-review",
     "./skills/workflow/handoff",
+    "./skills/workflow/grilling",
+    "./skills/workflow/grill-me",
     "./skills/tools/chrome-cdp"
   ]
 }

@@ -7,6 +7,8 @@ Skills adapted from other people's work, with where they came from and the exact
 | `thermo-review` | [`thermo-nuclear-code-quality-review`](https://github.com/cursor/plugins/tree/main/cursor-team-kit/skills/thermo-nuclear-code-quality-review) in Cursor's `cursor-team-kit` | `6e3d2ea` (2026-05-28), verified unchanged at `df58112` (2026-10-05) | MIT, © 2026 Cursor ([licenses/cursor-plugins.LICENSE](licenses/cursor-plugins.LICENSE); a copy ships inside the skill folder as `LICENSE.cursor`) |
 | `verification-before-completion` | [`verification-before-completion`](https://github.com/obra/superpowers/tree/main/skills/verification-before-completion) in Jesse Vincent's superpowers | 6.4.1, `5bf4e7801` (2026-10-11) | MIT, © 2025 Jesse Vincent ([licenses/superpowers.LICENSE](licenses/superpowers.LICENSE)) |
 | `receiving-code-review` | [`receiving-code-review`](https://github.com/obra/superpowers/tree/main/skills/receiving-code-review) in Jesse Vincent's superpowers | 6.4.1, `5bf4e7801` (2026-10-11) | MIT, © 2025 Jesse Vincent ([licenses/superpowers.LICENSE](licenses/superpowers.LICENSE)) |
+| `grilling` | [`grilling`](https://github.com/mattpocock/skills/tree/main/skills/productivity/grilling) in Matt Pocock's skills | `main` @ `95249b0` (2026-10-07) | MIT, © 2026 Matt Pocock ([licenses/mattpocock-skills.LICENSE](licenses/mattpocock-skills.LICENSE)) |
+| `grill-me` | [`grill-me`](https://github.com/mattpocock/skills/tree/main/skills/productivity/grill-me) in Matt Pocock's skills | `main` @ `95249b0` (2026-10-07) | MIT, © 2026 Matt Pocock ([licenses/mattpocock-skills.LICENSE](licenses/mattpocock-skills.LICENSE)) |
 
 ## Ideas, not text
 
