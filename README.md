@@ -30,6 +30,19 @@ npx skills@latest add gdiab/gdstack
 | [`grilling`](skills/workflow/grilling/SKILL.md) | fires on "grill me", "stress-test this plan" | Matt Pocock's skill, unchanged: interview the user in rounds over a design tree, asking the whole settled frontier at once with a recommended answer per question, looking facts up itself and leaving decisions to the user, until nothing is silently assumed. |
 | [`grill-me`](skills/workflow/grill-me/SKILL.md) | `/gdstack:grill-me` | Matt Pocock's slash-command entry point to `grilling`, unchanged. |
 | [`chrome-cdp`](skills/tools/chrome-cdp/SKILL.md) | `/gdstack:chrome-cdp` | Drive the user's real, logged-in Chrome over the DevTools Protocol with one consent click per Chrome session: a bridge daemon holds the single socket and every command routes through it. Includes the daemon, a low-level driver, and a ChatGPT/claude.ai chat-history admin tool. |
+| [`humanizer`](skills/writing/humanizer/SKILL.md) | `/gdstack:humanizer`, or a matching prose-editing or story-development request | Humanize prose, audit writing patterns without edits, or develop an evidence-based nonfiction story before the prose pass. |
+
+## Humanizer
+
+[Humanizer](skills/writing/humanizer/SKILL.md) joins GD stack in 0.5.0. It retains the 33-pattern guide, detect mode, and self-check from gdiab/humanizer 3.1.0, and adds an optional [story-development workflow](skills/writing/humanizer/references/story-development.md) for nonfiction posts and essays. Ordinary edits do not start an interview or restructure the story.
+
+Invoke `/gdstack:humanizer` in the Claude Code plugin, or select `humanizer` when installing skills for another agent. Install just this skill with:
+
+```bash
+npx skills@latest add gdiab/gdstack --skill humanizer
+```
+
+Future development of this variant lives here. The standalone gdiab/humanizer repository remains available as a legacy package. Install and verify this copy before retiring a duplicate standalone skill; update any project instructions that point directly at the old installation. No automatic uninstall or two-way synchronization is provided. See [maintenance and release order](skills/writing/humanizer/UPSTREAM.md).
 
 ## License
 
