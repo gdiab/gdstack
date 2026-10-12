@@ -1,6 +1,7 @@
 ---
 name: handoff
 description: "Compact the current session into a handoff so the work can resume cleanly, in a fresh session today or at an unknown later time. Use whenever the user asks to hand off, wrap up, park, or stop the current work (write a handoff, I'm done for today, pick this up later, hand this off, context is getting full), even if they never say the word handoff. Routes by resume distance and defers to the user's own handoff convention when their instructions define one."
+disable-model-invocation: false
 ---
 
 # Handoff
@@ -16,17 +17,18 @@ The purpose of any handoff is one thing: a fresh agent with zero context resumes
 
 ## 2a. Same-day: spawn, don't write
 
-No durable file. A repo file for a two-hour gap is ceremony that goes stale by tomorrow. Compact the conversation into a summary and launch it as a background agent:
+No durable file. A repo file for a two-hour gap is ceremony that goes stale by tomorrow. Compact the conversation into a summary, save it to a temp file, and launch it as a background agent:
 
 ```bash
-claude --bg --name "<short descriptive name>" "<handoff summary>"
+claude --bg --name "<short descriptive name>" -- "$(cat <summary file>)"
 ```
 
 - The summary becomes the new agent's prompt. Structure it as: current state, immediate next actions, artifact references (paths/URLs, not content), and a "Suggested skills" list naming which skills the new session should invoke and why.
+- Write the summary to a file and pass it with `$(cat …)`, never inline. An inline summary runs backticks and expands `$` in the shell, and handoffs quote commands and variables all the time. Put the file in the session scratchpad if the session names one, else the OS temp dir (`$TMPDIR`, else `/tmp`; `%TEMP%` on Windows).
 - Always pass `--name`. It labels the job list, session picker, and terminal title.
 - Redact secrets ruthlessly. The summary appears in process lists and job UIs.
 - Tell the user the agent's name and that `claude agents` manages it.
-- If the user doesn't want a spawned agent (or `claude --bg` is unavailable), write the same summary to a doc in the OS temp dir instead and print its path.
+- If the user doesn't want a spawned agent (or `claude --bg` is unavailable), write the same summary to a doc in the session scratchpad or the OS temp dir (`$TMPDIR`, else `/tmp`; `%TEMP%` on Windows) instead and print its path.
 
 ## 2b. Unknown-time: durable artifact
 
