@@ -9,6 +9,7 @@ Skills adapted from other people's work, with where they came from and the exact
 | `receiving-code-review` | [`receiving-code-review`](https://github.com/obra/superpowers/tree/main/skills/receiving-code-review) in Jesse Vincent's superpowers | 6.4.1, `5bf4e7801` (2026-10-11) | MIT, © 2025 Jesse Vincent ([licenses/superpowers.LICENSE](licenses/superpowers.LICENSE)) |
 | `grilling` | [`grilling`](https://github.com/mattpocock/skills/tree/main/skills/productivity/grilling) in Matt Pocock's skills | `main` @ `95249b0` (2026-10-07) | MIT, © 2026 Matt Pocock ([licenses/mattpocock-skills.LICENSE](licenses/mattpocock-skills.LICENSE)) |
 | `grill-me` | [`grill-me`](https://github.com/mattpocock/skills/tree/main/skills/productivity/grill-me) in Matt Pocock's skills | `main` @ `95249b0` (2026-10-07) | MIT, © 2026 Matt Pocock ([licenses/mattpocock-skills.LICENSE](licenses/mattpocock-skills.LICENSE)) |
+| `humanizer` | [gdiab/humanizer](https://github.com/gdiab/humanizer), based on [blader/humanizer](https://github.com/blader/humanizer), with credited ideas from [petergyang/no-ai-slop](https://github.com/petergyang/no-ai-slop) | gdiab 3.1.0, `52d2dee`; blader 3.0.0 | MIT, original notice in [skills/writing/humanizer/LICENSE](skills/writing/humanizer/LICENSE) |
 
 ## Ideas, not text
 
