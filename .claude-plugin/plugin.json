@@ -1,6 +1,6 @@
 {
   "name": "gdstack",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "George Diab's agent skills: strict code review, verification, writing and the tools he works with. Adapted from Matt Pocock, Lauren Tan (pstack) and Cursor where credited.",
   "author": {
     "name": "George Diab",
@@ -20,6 +20,7 @@
     "./skills/engineering/verification-before-completion",
     "./skills/engineering/receiving-code-review",
     "./skills/workflow/handoff",
+    "./skills/workflow/fanout-lanes",
     "./skills/workflow/grilling",
     "./skills/workflow/grill-me",
     "./skills/tools/chrome-cdp",
