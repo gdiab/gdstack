@@ -20,6 +20,7 @@ import sys
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from itertools import chain
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Optional
 
@@ -108,97 +109,124 @@ def text_size(value: Any) -> int:
     return 0
 
 
-def claude_session(records: Iterable[dict], path: Path, since: Optional[float], seen: set) -> Session:
-    in_subagent_folder = path.parent.name == "subagents"
-    session = Session("claude", path.stem, parent=path.parent.parent.name if in_subagent_folder else None)
-    tool_names: dict[str, str] = {}
-    for record in records:
+def text_or(value: Any, default: str) -> str:
+    return value if isinstance(value, str) and value else default
+
+
+def token_count(usage: dict, key: str) -> int:
+    value = usage.get(key, 0)
+    if not isinstance(value, int):
+        raise ValueError(f"{key} is not a count")
+    return value
+
+
+def in_window(time: float, since: Optional[float]) -> bool:
+    return since is None or time >= since
+
+
+class ClaudeReader:
+    def __init__(self, path: Path, since: Optional[float], seen: set) -> None:
+        in_subagent_folder = path.parent.name == "subagents"
+        self.session = Session("claude", path.stem, parent=path.parent.parent.name if in_subagent_folder else None)
+        self.since = since
+        self.seen = seen
+        self.tool_names: dict[str, str] = {}
+
+    def add(self, record: dict) -> None:
+        session = self.session
         if session.project == "?" and record.get("cwd"):
             session.project = Path(record["cwd"]).name
         if record.get("type") == "cost-state":
-            session.logged_cost = record.get("totalCostUSD")
-            continue
+            cost = record.get("totalCostUSD")
+            session.logged_cost = cost if isinstance(cost, (int, float)) else session.logged_cost
+            return
         message = record.get("message")
         time = parse_time(record.get("timestamp"))
         if not isinstance(message, dict) or time is None:
-            continue
+            return
         content = message.get("content")
         blocks = [block for block in content if isinstance(block, dict)] if isinstance(content, list) else []
         if record.get("type") == "assistant":
             for block in blocks:
                 if block.get("type") == "tool_use":
-                    tool_names[block.get("id")] = block.get("name", "?")
-            add_claude_call(session, message, record, time, since, seen)
-        elif record.get("type") == "user" and (since is None or time >= since):
+                    self.tool_names[block.get("id")] = text_or(block.get("name"), "?")
+            self.add_call(message, record, time)
+        elif record.get("type") == "user" and in_window(time, self.since):
             for block in blocks:
                 tool_id = block.get("tool_use_id")
-                if block.get("type") == "tool_result" and ("tool", tool_id) not in seen:
-                    seen.add(("tool", tool_id))
-                    session.tool_chars[tool_names.get(tool_id, "?")] += text_size(block.get("content"))
-    return session
+                if block.get("type") == "tool_result" and ("tool", tool_id) not in self.seen:
+                    self.seen.add(("tool", tool_id))
+                    session.tool_chars[self.tool_names.get(tool_id, "?")] += text_size(block.get("content"))
+
+    def add_call(self, message: dict, record: dict, time: float) -> None:
+        usage = message.get("usage")
+        if not usage or message.get("model") == "<synthetic>" or not in_window(time, self.since):
+            return
+        # One API call spans several log lines, and a resumed session can repeat earlier lines.
+        key = (message.get("id"), record.get("requestId")) if message.get("id") else record.get("uuid")
+        if key in self.seen:
+            return
+        fresh = token_count(usage, "input_tokens")
+        cache_read = token_count(usage, "cache_read_input_tokens")
+        cache_write = token_count(usage, "cache_creation_input_tokens")
+        output = token_count(usage, "output_tokens")
+        self.seen.add(key)
+        self.session.calls.append(
+            Call(time, fresh + cache_read + cache_write, fresh, cache_read, cache_write, output, text_or(message.get("model"), "?"))
+        )
 
 
-def add_claude_call(session: Session, message: dict, record: dict, time: float, since: Optional[float], seen: set) -> None:
-    usage = message.get("usage")
-    if not usage or message.get("model") == "<synthetic>" or (since is not None and time < since):
-        return
-    # One API call spans several log lines, and a resumed session can repeat earlier lines.
-    key = (message.get("id"), record.get("requestId")) if message.get("id") else record.get("uuid")
-    if key in seen:
-        return
-    seen.add(key)
-    fresh = usage.get("input_tokens", 0)
-    cache_read = usage.get("cache_read_input_tokens", 0)
-    cache_write = usage.get("cache_creation_input_tokens", 0)
-    session.calls.append(
-        Call(time, fresh + cache_read + cache_write, fresh, cache_read, cache_write, usage.get("output_tokens", 0), message.get("model", "?"))
-    )
+class CodexReader:
+    def __init__(self, path: Path, since: Optional[float], seen: set) -> None:
+        self.session = Session("codex", path.stem)
+        self.since = since
+        self.seen = seen
+        self.has_meta = False
+        self.model = "?"
+        self.tool_names: dict[str, str] = {}
 
-
-def codex_session(records: Iterable[dict], path: Path, since: Optional[float]) -> Session:
-    session = Session("codex", path.stem)
-    has_meta = False
-    model = "?"
-    previous_total = None
-    tool_names: dict[str, str] = {}
-    for record in records:
+    def add(self, record: dict) -> None:
+        session = self.session
         kind = record.get("type")
         payload = record.get("payload") if isinstance(record.get("payload"), dict) else {}
         subtype = payload.get("type")
         time = parse_time(record.get("timestamp"))
-        if kind == "session_meta" and not has_meta:
-            has_meta = True
-            session.id = payload.get("id") or session.id
-            session.parent = payload.get("parent_thread_id") or payload.get("forked_from_id")
-            session.project = Path(payload.get("cwd") or "?").name
+        if kind == "session_meta" and not self.has_meta:
+            self.has_meta = True
+            session.id = text_or(payload.get("id"), session.id)
+            parent = payload.get("parent_thread_id") or payload.get("forked_from_id")
+            session.parent = parent if isinstance(parent, str) else None
+            session.project = Path(text_or(payload.get("cwd"), "?")).name
         elif kind == "turn_context":
-            model = payload.get("model") or model
+            self.model = text_or(payload.get("model"), self.model)
         elif subtype == "token_count" and payload.get("info") and time is not None:
-            info = payload["info"]
-            total = info["total_token_usage"]["total_tokens"]
-            if total == previous_total:  # Codex repeats the event when nothing new ran.
-                continue
-            previous_total = total
-            if since is None or time >= since:
-                session.calls.append(codex_call(info["last_token_usage"], time, model))
+            self.add_call(payload["info"], time)
         elif subtype in ("function_call", "custom_tool_call"):
-            tool_names[payload.get("call_id")] = payload.get("name", "?")
+            self.tool_names[payload.get("call_id")] = text_or(payload.get("name"), "?")
         elif subtype in ("function_call_output", "custom_tool_call_output"):
-            if time is not None and (since is None or time >= since):
-                session.tool_chars[tool_names.get(payload.get("call_id"), "?")] += text_size(payload.get("output"))
-    return session
+            call_id = payload.get("call_id")
+            if time is not None and in_window(time, self.since) and ("tool", call_id) not in self.seen:
+                self.seen.add(("tool", call_id))
+                session.tool_chars[self.tool_names.get(call_id, "?")] += text_size(payload.get("output"))
+
+    def add_call(self, info: dict, time: float) -> None:
+        # Codex repeats the event when nothing new ran, and a copied log repeats them all.
+        # The cumulative total only identifies the event: a fork's total includes its parent's.
+        key = ("codex", self.session.id, info["total_token_usage"]["total_tokens"])
+        if key in self.seen:
+            return
+        usage = info["last_token_usage"]
+        # Unlike Claude's usage, Codex's input_tokens already includes the cached tokens.
+        context = token_count(usage, "input_tokens")
+        cache_read = token_count(usage, "cached_input_tokens")
+        cache_write = token_count(usage, "cache_write_input_tokens")
+        output = token_count(usage, "output_tokens")
+        self.seen.add(key)
+        if in_window(time, self.since):
+            self.session.calls.append(Call(time, context, max(0, context - cache_read - cache_write), cache_read, cache_write, output, self.model))
 
 
-def codex_call(usage: dict, time: float, model: str) -> Call:
-    # Unlike Claude's usage, Codex's input_tokens already includes the cached tokens.
-    context = usage.get("input_tokens", 0)
-    cache_read = usage.get("cached_input_tokens", 0)
-    cache_write = usage.get("cache_write_input_tokens", 0)
-    return Call(time, context, max(0, context - cache_read - cache_write), cache_read, cache_write, usage.get("output_tokens", 0), model)
-
-
-def read_records(path: Path) -> tuple[list[dict], int]:
-    records, bad_lines = [], 0
+def read_records(path: Path, result: "Scan") -> Iterator[dict]:
     with path.open(errors="ignore") as handle:
         for line in handle:
             if not line.strip():
@@ -206,15 +234,15 @@ def read_records(path: Path) -> tuple[list[dict], int]:
             try:
                 record = json.loads(line)
             except ValueError:
-                bad_lines += 1
-                continue
+                record = None
             if isinstance(record, dict):
-                records.append(record)
-    return records, bad_lines
+                yield record
+            else:
+                result.bad_lines += 1
 
 
-def is_codex(records: list[dict]) -> bool:
-    return bool(records) and records[0].get("type") in ("session_meta", "turn_context", "event_msg", "response_item")
+def is_codex(record: dict) -> bool:
+    return record.get("type") in ("session_meta", "turn_context", "event_msg", "response_item")
 
 
 def default_roots() -> list[Path]:
@@ -243,36 +271,69 @@ def log_files(targets: Iterable[Path], since: Optional[float]) -> Iterator[Path]
     yield from (path for _, path in sorted(dated))
 
 
+def read_session(path: Path, since: Optional[float], seen: set, result: "Scan") -> Optional[Session]:
+    """Read one log. A record that breaks a reader counts as malformed, and the rest still count."""
+    records = read_records(path, result)
+    first = next(records, None)
+    if first is None:
+        return None
+    reader = (CodexReader if is_codex(first) else ClaudeReader)(path, since, seen)
+    for record in chain([first], records):
+        try:
+            reader.add(record)
+        except (AttributeError, KeyError, TypeError, ValueError):
+            result.bad_lines += 1
+    return reader.session
+
+
+def merge(target: Session, copy: Session) -> None:
+    """Fold another log of the same session, such as a copy in a second account folder."""
+    target.calls = sorted(target.calls + copy.calls, key=lambda call: call.time)
+    target.tool_chars.update(copy.tool_chars)
+    target.logged_cost = copy.logged_cost if copy.logged_cost is not None else target.logged_cost
+    target.project = copy.project if target.project == "?" else target.project
+    target.parent = target.parent or copy.parent
+
+
 def scan(targets: Iterable[Path], since: Optional[float]) -> Scan:
     result = Scan([])
     seen: set = set()
+    sessions: dict[tuple[str, str], Session] = {}
     for path in log_files(targets, since):
         try:
-            records, bad_lines = read_records(path)
+            session = read_session(path, since, seen, result)
         except OSError:
             result.skipped_files += 1
             continue
         result.files += 1
-        result.bad_lines += bad_lines
-        session = codex_session(records, path, since) if is_codex(records) else claude_session(records, path, since, seen)
-        result.sessions.append(session)
-    result.sessions = attach_subagents(result.sessions)
+        if session is None:
+            continue
+        key = (session.provider, session.id)
+        if key in sessions:
+            merge(sessions[key], session)
+        else:
+            sessions[key] = session
+    result.sessions = attach_subagents(sessions)
     return result
 
 
-def attach_subagents(sessions: list[Session]) -> list[Session]:
+def attach_subagents(sessions: dict[tuple[str, str], Session]) -> list[Session]:
     """Fold each child into its top-level parent. A child whose parent is out of scope stands alone."""
-    by_id = {session.id: session for session in sessions}
+
+    def parent_of(session: Session) -> Optional[Session]:
+        return sessions.get((session.provider, session.parent)) if session.parent else None
 
     def root_of(session: Session) -> Session:
         visited = {session.id}
-        while session.parent in by_id and session.parent not in visited:
-            session = by_id[session.parent]
-            visited.add(session.id)
+        parent = parent_of(session)
+        while parent and parent.id not in visited:
+            visited.add(parent.id)
+            session = parent
+            parent = parent_of(session)
         return session
 
     top_level = []
-    for session in sessions:
+    for session in sessions.values():
         root = root_of(session)
         if root is session:
             top_level.append(session)

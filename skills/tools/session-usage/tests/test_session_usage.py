@@ -154,6 +154,57 @@ class CodexParsing(LogCase):
         self.assertEqual(session.tool_chars["shell"], 12)
 
 
+class ReviewRegressions(LogCase):
+    def test_same_session_in_two_account_folders_is_one_row(self):
+        self.write("account-a/p/s1.jsonl", [claude_line(1, "a", fresh=10)])
+        self.write("account-b/p/s1.jsonl", [claude_line(1, "a", fresh=10), claude_line(2, "b", fresh=20)])
+        self.write("account-a/p/s1/subagents/agent-x.jsonl", [claude_line(3, "c", fresh=30)])
+        (session,) = self.sessions()
+        self.assertEqual(session.id, "s1")
+        self.assertEqual(len(session.calls), 2)
+        self.assertEqual(len(session.all_calls), 3)
+
+    def test_copied_codex_log_counts_once(self):
+        lines = [codex_meta("c1"), codex_token_line(1, 110, 100), codex_token_line(2, 300, 190)]
+        self.write("a/s.jsonl", lines)
+        self.write("b/s.jsonl", lines)
+        (session,) = self.sessions()
+        self.assertEqual(len(session.calls), 2)
+
+    def test_records_stream_instead_of_loading_the_file(self):
+        path = self.write("p/s1.jsonl", [claude_line(1, "a", fresh=10)])
+        records = su.read_records(path, su.Scan([]))
+        self.assertIs(iter(records), records)
+
+    def test_broken_claude_records_are_counted_and_the_rest_kept(self):
+        wrong_usage = claude_line(1, "a", fresh=10)
+        wrong_usage["message"]["usage"] = ["not", "a", "mapping"]
+        wrong_count = claude_line(2, "b", output=7)
+        wrong_count["message"]["usage"]["output_tokens"] = None
+        wrong_time = claude_line(3, "c", fresh=10)
+        wrong_time["timestamp"] = 12345
+        self.write("p/s1.jsonl", [wrong_usage, wrong_count, wrong_time, claude_line(4, "d", fresh=40)], raw_tail="[1, 2]\n")
+        result = su.scan([self.root], None)
+        self.assertEqual(result.bad_lines, 4)
+        self.assertEqual([call.context for call in result.sessions[0].calls], [40])
+
+    def test_broken_codex_records_are_counted_and_the_rest_kept(self):
+        missing_total = codex_token_line(1, 10, 10)
+        del missing_total["payload"]["info"]["total_token_usage"]
+        self.write("s.jsonl", [codex_meta("c1"), missing_total, codex_token_line(2, 20, 20)])
+        result = su.scan([self.root], None)
+        self.assertEqual(result.bad_lines, 1)
+        self.assertEqual(len(result.sessions[0].calls), 1)
+
+    def test_unusual_field_types_do_not_break_the_report(self):
+        odd = claude_line(1, "a", fresh=10)
+        odd["message"]["model"] = ["not-text"]
+        self.write("p/s1.jsonl", [{"type": "cost-state", "totalCostUSD": "free"}, odd])
+        code, output = self.run_cli()
+        self.assertEqual(code, 0)
+        self.assertIn("s1", output)
+
+
 class Metrics(unittest.TestCase):
     @staticmethod
     def calls(*sizes, write=0, minutes=1):
