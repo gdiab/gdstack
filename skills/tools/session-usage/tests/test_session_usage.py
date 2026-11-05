@@ -2,11 +2,13 @@
 import contextlib
 import io
 import json
+import os
 import sys
 import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import session_usage as su  # noqa: E402
@@ -82,9 +84,7 @@ class ClaudeParsing(LogCase):
         self.assertEqual([call.context for call in session.calls], [10])
 
     def test_resumed_session_does_not_double_count_copied_lines(self):
-        import os
-
-        older = self.write("p/old.jsonl", [claude_line(1, "a", fresh=10)])
+        older =self.write("p/old.jsonl", [claude_line(1, "a", fresh=10)])
         newer = self.write("p/new.jsonl", [claude_line(1, "a", fresh=10), claude_line(2, "b", fresh=20)])
         os.utime(older, (1, 1))
         os.utime(newer, (2, 2))
@@ -195,6 +195,43 @@ class ReviewRegressions(LogCase):
         result = su.scan([self.root], None)
         self.assertEqual(result.bad_lines, 1)
         self.assertEqual(len(result.sessions[0].calls), 1)
+
+    def assert_copy_survives_read_error(self, lines, expected_calls):
+        broken = self.write("a/s.jsonl", lines)
+        intact = self.write("b/s.jsonl", lines)
+        os.utime(broken, (1, 1))
+        os.utime(intact, (2, 2))
+        real_read = su.read_records
+
+        def failing_read(path, result):
+            records = real_read(path, result)
+            if path == broken:
+                for _ in range(len(lines) - 1):
+                    yield next(records)
+                raise OSError("disk went away")
+            yield from records
+
+        with mock.patch.object(su, "read_records", failing_read):
+            result = su.scan([self.root], None)
+        self.assertEqual(result.skipped_files, 1)
+        self.assertEqual(len(result.sessions), 1)
+        self.assertEqual(len(result.sessions[0].calls), expected_calls)
+
+    def test_read_error_keeps_claude_records_and_the_copy_completes_them(self):
+        self.assert_copy_survives_read_error([claude_line(1, "a", fresh=10), claude_line(2, "b", fresh=20)], 2)
+
+    def test_read_error_keeps_codex_records_and_the_copy_completes_them(self):
+        self.assert_copy_survives_read_error([codex_meta("c1"), codex_token_line(1, 10, 10), codex_token_line(2, 30, 20)], 2)
+
+    def test_impossible_token_counts_are_malformed(self):
+        for bad_value in (True, -1, 10**400, 1.5):
+            with self.subTest(bad_value=bad_value):
+                line = claude_line(1, "a", fresh=10)
+                line["message"]["usage"]["input_tokens"] = bad_value
+                self.write("p/s1.jsonl", [line, claude_line(2, "b", fresh=40)])
+                result = su.scan([self.root], None)
+                self.assertEqual(result.bad_lines, 1)
+                self.assertEqual([call.context for call in result.sessions[0].calls], [40])
 
     def test_unusual_field_types_do_not_break_the_report(self):
         odd = claude_line(1, "a", fresh=10)

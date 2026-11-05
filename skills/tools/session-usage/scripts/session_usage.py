@@ -20,7 +20,6 @@ import sys
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from itertools import chain
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Optional
 
@@ -31,6 +30,7 @@ DEFAULT_WINDOW = "7d"
 RESET_MIN_CONTEXT = 50_000
 RESET_RATIO = 0.5
 GROWTH_POINTS = 12
+MAX_TOKENS = 10**15  # Far above any real call. Larger values are corrupt.
 
 
 @dataclass
@@ -115,8 +115,8 @@ def text_or(value: Any, default: str) -> str:
 
 def token_count(usage: dict, key: str) -> int:
     value = usage.get(key, 0)
-    if not isinstance(value, int):
-        raise ValueError(f"{key} is not a count")
+    if type(value) is not int or not 0 <= value < MAX_TOKENS:
+        raise ValueError(f"{key} is not a token count")
     return value
 
 
@@ -272,18 +272,19 @@ def log_files(targets: Iterable[Path], since: Optional[float]) -> Iterator[Path]
 
 
 def read_session(path: Path, since: Optional[float], seen: set, result: "Scan") -> Optional[Session]:
-    """Read one log. A record that breaks a reader counts as malformed, and the rest still count."""
-    records = read_records(path, result)
-    first = next(records, None)
-    if first is None:
-        return None
-    reader = (CodexReader if is_codex(first) else ClaudeReader)(path, since, seen)
-    for record in chain([first], records):
-        try:
-            reader.add(record)
-        except (AttributeError, KeyError, TypeError, ValueError):
-            result.bad_lines += 1
-    return reader.session
+    """Read one log. A broken record counts as malformed. A read error keeps what was already read,
+    because `seen` already holds those records and a copy of the log would not count them again."""
+    reader = None
+    try:
+        for record in read_records(path, result):
+            reader = reader or (CodexReader if is_codex(record) else ClaudeReader)(path, since, seen)
+            try:
+                reader.add(record)
+            except (AttributeError, KeyError, TypeError, ValueError):
+                result.bad_lines += 1
+    except OSError:
+        result.skipped_files += 1
+    return reader.session if reader else None
 
 
 def merge(target: Session, copy: Session) -> None:
@@ -300,11 +301,7 @@ def scan(targets: Iterable[Path], since: Optional[float]) -> Scan:
     seen: set = set()
     sessions: dict[tuple[str, str], Session] = {}
     for path in log_files(targets, since):
-        try:
-            session = read_session(path, since, seen, result)
-        except OSError:
-            result.skipped_files += 1
-            continue
+        session = read_session(path, since, seen, result)
         result.files += 1
         if session is None:
             continue
@@ -437,7 +434,7 @@ def cost_text(summary: dict) -> str:
 def scope_lines(window: str, result: Scan, shown: int) -> list[str]:
     lines = [f"Scope: {window}, {result.files} log files, {len(result.sessions)} sessions, showing {shown}"]
     if result.skipped_files or result.bad_lines:
-        lines.append(f"Not read: {result.skipped_files} files, {result.bad_lines} malformed lines")
+        lines.append(f"Incomplete: {result.skipped_files} files with read errors, {result.bad_lines} malformed lines")
     return lines
 
 
