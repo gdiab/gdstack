@@ -29,11 +29,13 @@ MAX_USER_MESSAGES = 40
 REPEAT_MIN = 3
 
 SECRET_NAME = r"[\w.-]*(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|account[_-]?key|credential|private[_-]?key)[\w.-]*"
+SECRET_VALUE = r"(?:\"[^\"]*\"|'[^']*'|[^\s;,\"'&]+)"
 MASKS = [
     (re.compile(r"://[^/\s:@]+:[^/\s@]+@"), "://***@"),
     (re.compile(r"(?i)\b(bearer|basic)\s+[\w.~+/=-]+"), r"\1 ***"),
-    (re.compile(rf"(?i)(--?{SECRET_NAME})[ =]\S+"), r"\1 ***"),
-    (re.compile(rf"(?i)({SECRET_NAME})[\"']?\s*[:=]\s*[\"']?[^\s;,\"'&]+"), r"\1=***"),
+    (re.compile(rf"(\s)(-u|--user)[ =]{SECRET_VALUE}"), r"\1\2 ***"),
+    (re.compile(rf"(?i)(--?{SECRET_NAME})[ =]{SECRET_VALUE}"), r"\1 ***"),
+    (re.compile(rf"(?i)({SECRET_NAME})[\"']?\s*[:=]\s*{SECRET_VALUE}"), r"\1=***"),
     (re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"), "***@***"),
 ]
 OPAQUE = re.compile(r"[A-Za-z0-9+=_-]{24,}")
@@ -43,7 +45,7 @@ INJECTED = re.compile(r"\s*<(?:system-reminder|command-|local-command|task-notif
 
 def mask(text: str, limit: int) -> str:
     """Mask first and cut after, so a cut can't leave part of a secret unmatched."""
-    text = re.sub(r"\s+", " ", text).strip()
+    text = re.sub(r"\s+", " ", text.replace('\\"', '"')).strip()  # Codex arguments are escaped JSON.
     for pattern, replacement in MASKS:
         text = pattern.sub(replacement, text)
     text = OPAQUE.sub(lambda match: "***" if re.search(r"\d", match[0]) else match[0], text)

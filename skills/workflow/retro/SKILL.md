@@ -12,7 +12,7 @@ Run this from a fresh session, pointed at the session to review. If the user nam
 
 ## Steps
 
-1. **Check what is due.** Read `retro-ledger.md` at the root of the reviewed project. For each `open` row whose check is due, measure it and recommend `keep`, `revise` or `remove`. If the targeted problem did not come up, the check is inconclusive: extend it once, then recommend `remove`. Done when every due row has a recommendation and the numbers behind it. If there is no ledger, go to step 2.
+1. **Check what is due.** Read `retro-ledger.md` at the root of the reviewed project's main checkout. For each `open` row whose check is due, measure it and recommend `keep`, `revise` or `remove`. If the targeted problem did not come up, the check is inconclusive: extend it once, then recommend `remove`. Done when every due row has a recommendation and the numbers behind it. If there is no ledger, go to step 2.
 
 2. **Build the digest.** Run this from the skill's folder:
 
@@ -54,7 +54,7 @@ Run this from a fresh session, pointed at the session to review. If the user nam
 
 ## Ledger
 
-`retro-ledger.md` is one table. Create it on the first approved proposal. If the project is public, ask where to keep it first. Rows hold descriptions in your own words, never digest excerpts.
+`retro-ledger.md` is one table, always at the root of the project's main checkout, so every run finds it. Create it on the first approved proposal. If the project is public, add the file to `.git/info/exclude` so it stays local. Rows hold descriptions in your own words, never digest excerpts.
 
 ```markdown
 | Id | Proposed | Change | Evidence | Measure | Check by | Status |

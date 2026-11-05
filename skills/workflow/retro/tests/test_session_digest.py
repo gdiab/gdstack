@@ -47,6 +47,11 @@ class Masking(unittest.TestCase):
             "tool --password=mypasswordvalue": "mypasswordvalue",
             "ping alex@example.com": "alex@example.com",
             "value ghp_abcdefghijklmnopqrstuvwx1234": "ghp_abcdefghijklmnopqrstuvwx1234",
+            'password="first second third"': "second",
+            "--token 'first second third'": "third",
+            "curl -u admin:hunter2 https://example.com": "hunter2",
+            "curl --user 'admin:two words' https://example.com": "two words",
+            '{"cmd":"API_KEY=\\"synthetic secret\\" run"}': "synthetic",
         }
         for text, secret in cases.items():
             with self.subTest(text=text):
@@ -107,6 +112,12 @@ class Claude(LogCase):
         self.assertNotIn(ASSISTANT_TEXT, report)
         self.assertNotIn(TOOL_OUTPUT, report)
 
+    def test_quoted_secret_in_a_command_is_masked_in_the_report(self):
+        calls = [tool_use(f"t{index}", "Bash", command="mysql --password 'two words' -e 'select 1'") for index in range(3)]
+        report = sd.render(sd.read_digest(self.write("s1.jsonl", calls)))
+        self.assertIn("select 1", report)
+        self.assertNotIn("two words", report)
+
     def test_user_secrets_are_masked_in_the_report(self):
         report = sd.render(sd.read_digest(self.write("s1.jsonl", [user("use password=hunter2 for this")])))
         self.assertNotIn("hunter2", report)
@@ -142,6 +153,13 @@ class Codex(LogCase):
         self.assertEqual(digest.session, "c1")
         self.assertEqual(digest.tools, {"shell": 1, "exec": 1})
         self.assertEqual([text for _, _, text in digest.users], ["try again"])
+
+    def test_escaped_secret_in_repeated_arguments_is_masked_in_the_report(self):
+        arguments = json.dumps({"cmd": 'API_KEY="synthetic secret value" deploy'})
+        calls = [codex_item(type="function_call", name="shell", arguments=arguments, call_id=str(index)) for index in range(3)]
+        report = sd.render(sd.read_digest(self.write("rollout.jsonl", calls)))
+        self.assertIn("deploy", report)
+        self.assertNotIn("synthetic", report)
 
     def test_report_says_failures_are_unknown_and_hides_content(self):
         report = sd.render(sd.read_digest(self.write("rollout.jsonl", self.records())))
