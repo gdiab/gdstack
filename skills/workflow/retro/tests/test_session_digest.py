@@ -59,6 +59,11 @@ class Masking(unittest.TestCase):
             "sshpass -phunter2 ssh host": "hunter2",
             "mysql -h db -u root -phunter2 app": "hunter2",
             "mysqldump -phunter2 app": "hunter2",
+            "curl -uadmin:'two words' https://example.com": "words",
+            "http -a admin:alpha,beta example.com": "beta",
+            "mysql -p'two words' app": "words",
+            "export TOKEN=part1'quoted part'part3": "part3",
+            "password=alpha,beta": "beta",
             '{"cmd":"API_KEY=\\"synthetic secret\\" run"}': "synthetic",
         }
         for text, secret in cases.items():
@@ -130,10 +135,12 @@ class Claude(LogCase):
         self.assertNotIn("two words", report)
 
     def test_attached_credentials_are_masked_in_the_report(self):
-        calls = [tool_use(f"t{index}", "Bash", command="curl -uadmin:hunter2 https://example.com") for index in range(3)]
-        report = sd.render(sd.read_digest(self.write("s1.jsonl", calls)))
-        self.assertIn("example.com", report)
-        self.assertNotIn("hunter2", report)
+        for command in ("curl -uadmin:hunter2 https://example.com", "curl -uadmin:'hunter2 two' https://example.com", "curl -u admin:ab,hunter2 https://example.com"):
+            with self.subTest(command=command):
+                calls = [tool_use(f"t{index}", "Bash", command=command) for index in range(3)]
+                report = sd.render(sd.read_digest(self.write("s1.jsonl", calls)))
+                self.assertIn("example.com", report)
+                self.assertNotIn("hunter2", report)
 
     def test_user_secrets_are_masked_in_the_report(self):
         report = sd.render(sd.read_digest(self.write("s1.jsonl", [user("use password=hunter2 for this")])))

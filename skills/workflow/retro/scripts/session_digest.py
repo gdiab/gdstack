@@ -29,16 +29,17 @@ MAX_USER_MESSAGES = 40
 REPEAT_MIN = 3
 
 SECRET_NAME = r"[\w.-]*(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|account[_-]?key|credential|private[_-]?key)[\w.-]*"
-SECRET_VALUE = r"(?:\"[^\"]*\"|'[^']*'|[^\s;,\"'&]+)"
+# One shell argument: quoted segments and plain text joined, up to whitespace or a shell separator.
+SHELL_ARG = r"(?:\"[^\"]*\"|'[^']*'|[^\s;&|\"'])+"
 MASKS = [
     (re.compile(r"://[^/\s:@]+:[^/\s@]+@"), "://***@"),
     (re.compile(r"(?i)\b(bearer|basic)\s+[\w.~+/=-]+"), r"\1 ***"),
     # Basic auth flags hold user:password, with or without a separator. Without a colon they are plain options.
-    (re.compile(r"(\s)(-u|-a|--user|--auth)[ =]?(?:\"[^\"]*:[^\"]*\"|'[^']*:[^']*'|[^\s;,\"'&:]+:[^\s;,\"'&]*)"), r"\1\2 ***"),
-    (re.compile(rf"\b(sshpass\s+-p)\s*{SECRET_VALUE}"), r"\1 ***"),
-    (re.compile(r"\b(mysql|mysqldump|mariadb)\b([^|;&]*?\s)-p[^\s;,&]+"), r"\1\2-p***"),
-    (re.compile(rf"(?i)(--?{SECRET_NAME})[ =]{SECRET_VALUE}"), r"\1 ***"),
-    (re.compile(rf"(?i)({SECRET_NAME})[\"']?\s*[:=]\s*{SECRET_VALUE}"), r"\1=***"),
+    (re.compile(rf"(\s)(-u|-a|--user|--auth)[ =]?(?=\S*:){SHELL_ARG}"), r"\1\2 ***"),
+    (re.compile(rf"\b(sshpass\s+-p)\s*{SHELL_ARG}"), r"\1 ***"),
+    (re.compile(rf"\b(mysql|mysqldump|mariadb)\b([^|;&]*?\s)-p{SHELL_ARG}"), r"\1\2-p***"),
+    (re.compile(rf"(?i)(--?{SECRET_NAME})[ =]{SHELL_ARG}"), r"\1 ***"),
+    (re.compile(rf"(?i)({SECRET_NAME})[\"']?\s*[:=]\s*{SHELL_ARG}"), r"\1=***"),
     (re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"), "***@***"),
 ]
 OPAQUE = re.compile(r"[A-Za-z0-9+=_-]{24,}")
