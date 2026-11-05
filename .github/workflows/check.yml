@@ -11,3 +11,4 @@ jobs:
       - run: pip install pyyaml
       - run: python3 scripts/check-skills.py
       - run: python3 -m unittest discover -s skills/tools/session-usage/tests
+      - run: python3 -m unittest discover -s skills/workflow/retro/tests
