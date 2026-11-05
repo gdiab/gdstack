@@ -51,6 +51,14 @@ class Masking(unittest.TestCase):
             "--token 'first second third'": "third",
             "curl -u admin:hunter2 https://example.com": "hunter2",
             "curl --user 'admin:two words' https://example.com": "two words",
+            "curl -uadmin:hunter2 https://example.com": "hunter2",
+            "curl -u 'admin:two words' https://example.com": "two words",
+            "http -a admin:hunter2 example.com": "hunter2",
+            "http --auth=admin:hunter2 example.com": "hunter2",
+            "sshpass -p hunter2 ssh host": "hunter2",
+            "sshpass -phunter2 ssh host": "hunter2",
+            "mysql -h db -u root -phunter2 app": "hunter2",
+            "mysqldump -phunter2 app": "hunter2",
             '{"cmd":"API_KEY=\\"synthetic secret\\" run"}': "synthetic",
         }
         for text, secret in cases.items():
@@ -63,6 +71,9 @@ class Masking(unittest.TestCase):
 
     def test_ordinary_commands_stay_readable(self):
         self.assertEqual(sd.mask("pytest   tests/unit -q", 90), "pytest tests/unit -q")
+        for command in ("git push -u origin main", "sort -u names.txt", "mkdir -p build/out", "docker run -p 80:80 app"):
+            with self.subTest(command=command):
+                self.assertEqual(sd.mask(command, 90), command)
 
     def test_long_text_is_cut(self):
         self.assertEqual(len(sd.mask("word " * 100, 20)), 20)
@@ -117,6 +128,12 @@ class Claude(LogCase):
         report = sd.render(sd.read_digest(self.write("s1.jsonl", calls)))
         self.assertIn("select 1", report)
         self.assertNotIn("two words", report)
+
+    def test_attached_credentials_are_masked_in_the_report(self):
+        calls = [tool_use(f"t{index}", "Bash", command="curl -uadmin:hunter2 https://example.com") for index in range(3)]
+        report = sd.render(sd.read_digest(self.write("s1.jsonl", calls)))
+        self.assertIn("example.com", report)
+        self.assertNotIn("hunter2", report)
 
     def test_user_secrets_are_masked_in_the_report(self):
         report = sd.render(sd.read_digest(self.write("s1.jsonl", [user("use password=hunter2 for this")])))

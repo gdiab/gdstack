@@ -33,7 +33,10 @@ SECRET_VALUE = r"(?:\"[^\"]*\"|'[^']*'|[^\s;,\"'&]+)"
 MASKS = [
     (re.compile(r"://[^/\s:@]+:[^/\s@]+@"), "://***@"),
     (re.compile(r"(?i)\b(bearer|basic)\s+[\w.~+/=-]+"), r"\1 ***"),
-    (re.compile(rf"(\s)(-u|--user)[ =]{SECRET_VALUE}"), r"\1\2 ***"),
+    # Basic auth flags hold user:password, with or without a separator. Without a colon they are plain options.
+    (re.compile(r"(\s)(-u|-a|--user|--auth)[ =]?(?:\"[^\"]*:[^\"]*\"|'[^']*:[^']*'|[^\s;,\"'&:]+:[^\s;,\"'&]*)"), r"\1\2 ***"),
+    (re.compile(rf"\b(sshpass\s+-p)\s*{SECRET_VALUE}"), r"\1 ***"),
+    (re.compile(r"\b(mysql|mysqldump|mariadb)\b([^|;&]*?\s)-p[^\s;,&]+"), r"\1\2-p***"),
     (re.compile(rf"(?i)(--?{SECRET_NAME})[ =]{SECRET_VALUE}"), r"\1 ***"),
     (re.compile(rf"(?i)({SECRET_NAME})[\"']?\s*[:=]\s*{SECRET_VALUE}"), r"\1=***"),
     (re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"), "***@***"),
