@@ -64,6 +64,9 @@ class Masking(unittest.TestCase):
             "mysql -p'two words' app": "words",
             "export TOKEN=part1'quoted part'part3": "part3",
             "password=alpha,beta": "beta",
+            "PASSWORD=alpha\\ beta run": "beta",
+            "tool --token alpha\\ beta run": "beta",
+            "PASSWORD=alpha\\;beta run": "beta",
             '{"cmd":"API_KEY=\\"synthetic secret\\" run"}': "synthetic",
         }
         for text, secret in cases.items():

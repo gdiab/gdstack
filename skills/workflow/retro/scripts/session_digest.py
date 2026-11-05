@@ -29,8 +29,8 @@ MAX_USER_MESSAGES = 40
 REPEAT_MIN = 3
 
 SECRET_NAME = r"[\w.-]*(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|account[_-]?key|credential|private[_-]?key)[\w.-]*"
-# One shell argument: quoted segments and plain text joined, up to whitespace or a shell separator.
-SHELL_ARG = r"(?:\"[^\"]*\"|'[^']*'|[^\s;&|\"'])+"
+# One shell argument: escapes, quoted segments and plain text joined, up to whitespace or a shell separator.
+SHELL_ARG = r"(?:\\.|\"[^\"]*\"|'[^']*'|[^\s;&|\"'\\])+"
 MASKS = [
     (re.compile(r"://[^/\s:@]+:[^/\s@]+@"), "://***@"),
     (re.compile(r"(?i)\b(bearer|basic)\s+[\w.~+/=-]+"), r"\1 ***"),
