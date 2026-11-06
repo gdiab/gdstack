@@ -1,0 +1,6 @@
+interface:
+  display_name: "Retro"
+  short_description: "Review a session and propose checked changes to the agent's environment"
+  default_prompt: "Use $retro on the session I name."
+policy:
+  allow_implicit_invocation: false
