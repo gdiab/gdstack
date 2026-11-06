@@ -56,9 +56,14 @@ glyph coverage in every language, or compatibility with every editor version.
 From `scripts`:
 
 ```bash
+npm run check
 npm test
 ```
 
-Tests include a neutral editable scene, an undersized label that must fail even
-when its export succeeds, broken bindings, and both editor themes. No personal
-workflow records are included in the test fixtures.
+`npm run check` type-checks the scripts against the contracts in `scene.mjs`
+(the parsed scene) and `bridge.d.ts` (what the Node side and the browser side
+exchange), using the pinned Excalidraw types. Tests include a neutral editable
+scene, malformed elements that must become findings rather than crashes, an
+undersized label that must fail even when its export succeeds, broken bindings,
+and both editor themes. No personal workflow records are included in the test
+fixtures.

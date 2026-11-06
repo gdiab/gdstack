@@ -25,5 +25,6 @@ jobs:
           cache: npm
           cache-dependency-path: skills/tools/excalidraw-diagram/scripts/package-lock.json
       - run: npm ci --ignore-scripts
+      - run: npm run check
       - run: npx playwright install --with-deps chromium
       - run: npm test

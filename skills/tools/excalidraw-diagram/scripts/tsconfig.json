@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react",
+    "skipLibCheck": true,
+    "types": ["node"],
+    "paths": {
+      "@excalidraw/math": ["./node_modules/@excalidraw/excalidraw/dist/types/math/index.d.ts"],
+      "@excalidraw/utils": ["./node_modules/@excalidraw/excalidraw/dist/types/utils/index.d.ts"],
+      "@excalidraw/utils/*": ["./node_modules/@excalidraw/excalidraw/dist/types/utils/*.d.ts"]
+    }
+  },
+  "include": ["*.mjs", "*.jsx", "*.d.ts"]
+}
