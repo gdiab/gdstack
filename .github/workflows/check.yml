@@ -12,3 +12,19 @@ jobs:
       - run: python3 scripts/check-skills.py
       - run: python3 -m unittest discover -s skills/tools/session-usage/tests
       - run: python3 -m unittest discover -s skills/workflow/retro/tests
+  excalidraw:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: skills/tools/excalidraw-diagram/scripts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: skills/tools/excalidraw-diagram/scripts/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+      - run: npx playwright install --with-deps chromium
+      - run: npm test

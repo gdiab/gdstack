@@ -10,6 +10,7 @@ Skills adapted from other people's work, with where they came from and the exact
 | `grilling` | [`grilling`](https://github.com/mattpocock/skills/tree/main/skills/productivity/grilling) in Matt Pocock's skills | `main` @ `95249b0` (2026-10-07) | MIT, © 2026 Matt Pocock ([licenses/mattpocock-skills.LICENSE](licenses/mattpocock-skills.LICENSE)) |
 | `grill-me` | [`grill-me`](https://github.com/mattpocock/skills/tree/main/skills/productivity/grill-me) in Matt Pocock's skills | `main` @ `95249b0` (2026-10-07) | MIT, © 2026 Matt Pocock ([licenses/mattpocock-skills.LICENSE](licenses/mattpocock-skills.LICENSE)) |
 | `humanizer` | [gdiab/humanizer](https://github.com/gdiab/humanizer), based on [blader/humanizer](https://github.com/blader/humanizer), with credited ideas from [petergyang/no-ai-slop](https://github.com/petergyang/no-ai-slop) | gdiab 3.1.0, `52d2dee`; blader 3.0.0 | MIT, original notice in [skills/writing/humanizer/LICENSE](skills/writing/humanizer/LICENSE) |
+| `excalidraw-diagram` | Design ideas from [coleam00/excalidraw-diagram-skill](https://github.com/coleam00/excalidraw-diagram-skill); original gdstack text and code | `8646fcc9f74f38539c6cdb4c969723336a96ddcd` (2026-03-01) | No upstream material copied; the source has no declared license at this pin. gdstack implementation: MIT, the repo [LICENSE](LICENSE). See [provenance](skills/tools/excalidraw-diagram/UPSTREAM.md). |
 
 ## Ideas, not text
 

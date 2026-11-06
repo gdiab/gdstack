@@ -1,0 +1,106 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, readFile, writeFile, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { parseScene } from '../scripts/scene.mjs';
+import { validate } from '../scripts/validate.mjs';
+import { sceneFixture } from './fixture.mjs';
+
+const issuesOf = scene => { const parsed = parseScene(scene); return parsed.ok ? [] : parsed.issues; };
+
+test('a native scene parses to its live elements with no issues', () => {
+  const scene = sceneFixture();
+  scene.elements.push({ ...scene.elements[0], id: 'gone', isDeleted: true });
+  const parsed = parseScene(scene);
+  assert.ok(parsed.ok, JSON.stringify(parsed));
+  assert.deepEqual(parsed.scene.elements.map(e => e.id), ['prepare', 'prepare-label', 'train', 'train-label', 'flow']);
+  assert.deepEqual(parsed.scene.files, {});
+});
+test('malformed elements and bindings are issues, not crashes', () => {
+  const scene = sceneFixture();
+  scene.elements.push(null);
+  scene.elements[0].boundElements = { id: 'prepare-label', type: 'text' };
+  scene.elements[4].startBinding = 'prepare';
+  scene.elements.push({ ...scene.elements[2], id: 'untyped', type: undefined });
+  scene.files = { stray: { dataURL: 'data:image/png;base64,AA' } };
+  scene.appState = { viewBackgroundColor: 42 };
+  const messages = issuesOf(scene).map(i => i.message);
+  assert.ok(messages.includes('Element is not an object'));
+  assert.ok(messages.includes('Element has no type'));
+  assert.ok(messages.some(m => m.startsWith('boundElements must be')));
+  assert.ok(messages.some(m => m.startsWith('startBinding must be')));
+  assert.ok(messages.some(m => m.startsWith('File stray must have')));
+  assert.ok(messages.some(m => m.startsWith('appState.viewBackgroundColor')));
+  assert.equal(parseScene({ type: 'excalidraw', version: 1, elements: [] }).ok, false);
+});
+test('the source model carries only established fields plus the raw record', () => {
+  const parsed = parseScene(sceneFixture());
+  assert.ok(parsed.ok);
+  const label = parsed.scene.elements.find(e => e.id === 'prepare-label');
+  assert.equal(label.kind, 'text');
+  assert.deepEqual([label.text, label.fontSize, label.fontFamily, label.lineHeight], ['Prepare clips', 20, 3, 1.25]);
+  assert.equal(label.source.originalText, 'Prepare clips');
+  assert.equal(parsed.scene.elements.find(e => e.id === 'flow').kind, 'other');
+  assert.deepEqual(parsed.scene.appState, { viewBackgroundColor: '#ffffff' });
+});
+test('embedded files keep their checked metadata and nothing else', () => {
+  const scene = sceneFixture();
+  scene.files = { f1: { id: 'f1', mimeType: 'image/png', dataURL: 'data:image/png;base64,AA', created: 1, version: 2, extra: true } };
+  const parsed = parseScene(scene);
+  assert.ok(parsed.ok);
+  assert.deepEqual(parsed.scene.files, { f1: { id: 'f1', mimeType: 'image/png', dataURL: 'data:image/png;base64,AA', created: 1, lastRetrieved: undefined, version: 2 } });
+  scene.files.f1.version = 'two';
+  assert.ok(issuesOf(scene).some(i => i.message === 'File f1 version must be a number'));
+});
+test('broken or deleted connector targets cannot pass', () => {
+  const scene = sceneFixture();
+  scene.elements[0].boundElements = scene.elements[0].boundElements.filter(b => b.type !== 'arrow');
+  assert.ok(issuesOf(scene).some(e => e.id === 'flow' && e.message.includes('reciprocal')));
+  scene.elements[2].isDeleted = true;
+  assert.ok(issuesOf(scene).some(e => e.id === 'flow' && e.message.includes('Missing live target')));
+});
+test('duplicate IDs and detached container labels cannot pass', () => {
+  const scene = sceneFixture();
+  scene.elements[1].containerId = 'train';
+  scene.elements.push({ ...scene.elements[0] });
+  const findings = issuesOf(scene);
+  assert.ok(findings.some(e => e.message.includes('Duplicate')));
+  assert.ok(findings.some(e => e.message.includes('does not point back')));
+});
+test('missing embedded image data cannot pass', () => {
+  const scene = sceneFixture();
+  scene.elements.push({ ...scene.elements[0], id: 'image', type: 'image', fileId: 'missing', boundElements: null });
+  assert.ok(issuesOf(scene).some(e => e.id === 'image' && e.message.includes('embedded')));
+});
+test('local exports and both editor themes pass, but undersized source text fails', { timeout: 120000 }, async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'gdstack-diagram-test-'));
+  try {
+    const file = path.join(dir, 'fixture.excalidraw');
+    const scene = sceneFixture();
+    scene.appState.gridModeEnabled = true;
+    scene.appState.gridSize = 25;
+    const original = JSON.stringify(scene);
+    await writeFile(file, original);
+    const passed = await validate(file, path.join(dir, 'valid'));
+    assert.equal(passed.status, 'passed', JSON.stringify(passed));
+    assert.equal(passed.loadedElements, scene.elements.length);
+    // Saved editor settings reach the editor; the theme is the screenshot override.
+    assert.deepEqual(passed.editorSettings, { viewBackgroundColor: '#ffffff', gridModeEnabled: true, gridSize: 25, gridStep: 5, theme: 'dark' });
+    assert.deepEqual(passed.screenshots, ['editor-light.png', 'editor-dark.png']);
+    assert.equal(await readFile(file, 'utf8'), original);
+    for (const name of ['preview.svg', 'preview.png', 'editor-light.png', 'editor-dark.png']) {
+      assert.ok((await stat(path.join(dir, 'valid', name))).size > 100);
+    }
+    // Leave the surrounding box wide: the defect is the text element itself.
+    scene.elements[1].width = 10;
+    scene.elements[1].height = 10;
+    await writeFile(file, JSON.stringify(scene));
+    const failed = await validate(file, path.join(dir, 'clipped'));
+    assert.equal(failed.status, 'failed', JSON.stringify(failed));
+    assert.deepEqual(failed.textMetrics.filter(m => m.overflow).map(m => m.id), ['prepare-label']);
+    assert.equal(failed.runtimeErrors.length, 0);
+    assert.ok((await stat(path.join(dir, 'clipped', 'preview.png'))).size > 100);
+    await assert.rejects(validate(file, path.join(dir, 'valid')), /must be empty/);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});

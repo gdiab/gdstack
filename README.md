@@ -33,6 +33,7 @@ npx skills@latest add gdiab/gdstack
 | [`grill-me`](skills/workflow/grill-me/SKILL.md) | `/gdstack:grill-me` | Matt Pocock's slash-command entry point to `grilling`, unchanged. |
 | [`chrome-cdp`](skills/tools/chrome-cdp/SKILL.md) | `/gdstack:chrome-cdp` | Drive the user's real, logged-in Chrome over the DevTools Protocol with one consent click per Chrome session: a bridge daemon holds the single socket and every command routes through it. Includes the daemon, a low-level driver, and a ChatGPT/claude.ai chat-history admin tool. |
 | [`session-usage`](skills/tools/session-usage/SKILL.md) | `/gdstack:session-usage` | Report where tokens went across local Claude Code and Codex sessions: context growth, cache rewrites, subagents, tool output and logged cost. Prints metrics only, never message text, and can estimate what a context restart cap would save. |
+| [`excalidraw-diagram`](skills/tools/excalidraw-diagram/SKILL.md) | `/gdstack:excalidraw-diagram` | Create native editable Excalidraw diagrams. Validate text dimensions and connector bindings, render previews locally, and inspect the actual editor in light and dark themes. Includes a pinned renderer and regression tests. |
 | [`humanizer`](skills/writing/humanizer/SKILL.md) | `/gdstack:humanizer`, or a matching prose-editing or story-development request | Humanize prose, audit writing patterns without edits, or develop an evidence-based nonfiction story before the prose pass. |
 
 ## Humanizer
