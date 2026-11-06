@@ -3,32 +3,47 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { inspectStructure } from '../scripts/structure.mjs';
+import { parseScene } from '../scripts/structure.mjs';
 import { validate } from '../scripts/validate.mjs';
 import { sceneFixture } from './fixture.mjs';
 
-test('a native scene has reciprocal text and arrow bindings', () => {
-  assert.deepEqual(inspectStructure(sceneFixture()), []);
+test('a native scene parses to its live elements with no issues', () => {
+  const scene = sceneFixture();
+  scene.elements.push({ ...scene.elements[0], id: 'gone', isDeleted: true });
+  const parsed = parseScene(scene);
+  assert.deepEqual(parsed.issues, []);
+  assert.deepEqual(parsed.elements.map(e => e.id), ['prepare', 'prepare-label', 'train', 'train-label', 'flow']);
+});
+test('malformed elements and bindings are issues, not crashes', () => {
+  const scene = sceneFixture();
+  scene.elements.push(null);
+  scene.elements[0].boundElements = { id: 'prepare-label', type: 'text' };
+  scene.elements[4].startBinding = 'prepare';
+  const messages = parseScene(scene).issues.map(i => i.message);
+  assert.ok(messages.includes('Element is not an object'));
+  assert.ok(messages.some(m => m.startsWith('boundElements must be')));
+  assert.ok(messages.some(m => m.startsWith('startBinding must be')));
+  assert.deepEqual(parseScene({ type: 'excalidraw', version: 1, elements: [] }).elements, []);
 });
 test('broken or deleted connector targets cannot pass', () => {
   const scene = sceneFixture();
   scene.elements[0].boundElements = scene.elements[0].boundElements.filter(b => b.type !== 'arrow');
-  assert.ok(inspectStructure(scene).some(e => e.id === 'flow' && e.message.includes('reciprocal')));
+  assert.ok(parseScene(scene).issues.some(e => e.id === 'flow' && e.message.includes('reciprocal')));
   scene.elements[2].isDeleted = true;
-  assert.ok(inspectStructure(scene).some(e => e.id === 'flow' && e.message.includes('Missing live target')));
+  assert.ok(parseScene(scene).issues.some(e => e.id === 'flow' && e.message.includes('Missing live target')));
 });
 test('duplicate IDs and detached container labels cannot pass', () => {
   const scene = sceneFixture();
   scene.elements[1].containerId = 'train';
   scene.elements.push({ ...scene.elements[0] });
-  const findings = inspectStructure(scene);
+  const findings = parseScene(scene).issues;
   assert.ok(findings.some(e => e.message.includes('Duplicate')));
   assert.ok(findings.some(e => e.message.includes('does not point back')));
 });
 test('missing embedded image data cannot pass', () => {
   const scene = sceneFixture();
   scene.elements.push({ ...scene.elements[0], id: 'image', type: 'image', fileId: 'missing', boundElements: null });
-  assert.ok(inspectStructure(scene).some(e => e.id === 'image' && e.message.includes('embedded')));
+  assert.ok(parseScene(scene).issues.some(e => e.id === 'image' && e.message.includes('embedded')));
 });
 test('local exports and both editor themes pass, but undersized source text fails', { timeout: 120000 }, async () => {
   const dir = await mkdtemp(path.join(tmpdir(), 'gdstack-diagram-test-'));

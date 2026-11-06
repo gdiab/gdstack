@@ -8,7 +8,7 @@ import { createServer } from 'node:http';
 import { parseArgs } from 'node:util';
 import { build } from 'esbuild';
 import { chromium } from 'playwright';
-import { inspectStructure } from './structure.mjs';
+import { parseScene } from './structure.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const html = `<!doctype html><html><head><meta charset="utf-8">
@@ -19,12 +19,13 @@ const html = `<!doctype html><html><head><meta charset="utf-8">
 
 export async function validate(source, out, { width = 1600, height = 1200 } = {}) {
   const bytes = await readFile(source);
-  const scene = JSON.parse(bytes);
+  const raw = JSON.parse(bytes.toString('utf8'));
+  const parsed = parseScene(raw);
   await mkdir(out, { recursive: true });
   if ((await readdir(out)).length) throw new Error('Output directory must be empty');
   const pkg = JSON.parse(await readFile(path.join(here, 'package.json'), 'utf8'));
   const report = { sourceSha256: createHash('sha256').update(bytes).digest('hex'),
-    dependencies: pkg.dependencies, structuralIssues: inspectStructure(scene), textMetrics: [],
+    dependencies: pkg.dependencies, structuralIssues: parsed.issues, textMetrics: [],
     editorIssues: [], runtimeErrors: [], screenshots: [], status: 'incomplete',
     visualInspection: 'Required: inspect preview and both editor screenshots' };
   let temp, server, browser;
@@ -34,6 +35,8 @@ export async function validate(source, out, { width = 1600, height = 1200 } = {}
       report.status = 'failed';
       return report;
     }
+    // The browser receives the parsed view: the source envelope with live elements only.
+    const scene = { ...raw, elements: parsed.elements };
     temp = await mkdtemp(path.join(tmpdir(), 'gdstack-excalidraw-'));
     await build({ entryPoints: [path.join(here, 'editor.jsx')], outfile: path.join(temp, 'bundle.js'),
       bundle: true, minify: true, conditions: ['production'], define: { 'process.env.NODE_ENV': '"production"' },
@@ -68,7 +71,7 @@ export async function validate(source, out, { width = 1600, height = 1200 } = {}
     await writeFile(path.join(out, 'preview.svg'), rendered.svg);
     await writeFile(path.join(out, 'preview.png'), Buffer.from(rendered.png.split(',')[1], 'base64'));
     await page.evaluate(data => window.mountScene(data), scene);
-    const expected = scene.elements.filter(e => !e.isDeleted);
+    const expected = parsed.elements;
     await page.waitForFunction(count => window.editor?.getSceneElements().length === count, expected.length);
     for (const theme of ['light', 'dark']) {
       await page.evaluate(value => window.setTheme(value), theme);

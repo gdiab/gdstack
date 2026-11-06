@@ -6,8 +6,9 @@ import '@excalidraw/excalidraw/index.css';
 const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 const families = Object.fromEntries(Object.entries(FONT_FAMILY).map(([name, id]) => [id, name]));
 
+// Both entry points receive a parsed scene: the source envelope with live elements only.
 window.checkScene = async scene => {
-  const elements = scene.elements.filter(e => !e.isDeleted);
+  const { elements } = scene;
   const args = { elements, files: scene.files || {}, appState: {
     ...scene.appState, exportBackground: true, exportWithDarkMode: false, exportEmbedScene: false,
   } };
