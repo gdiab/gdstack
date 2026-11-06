@@ -29,11 +29,11 @@
 /** @typedef {SourceText | SourceImage | SourceOther} SourceElement */
 /** @typedef {{ id: string, mimeType: string, dataURL: string, created: number, lastRetrieved: number | undefined, version: number | undefined }} SourceFile */
 /**
- * @typedef {object} SourceAppState
- * @property {string | undefined} viewBackgroundColor
- * @property {RawRecord} source The saved editor settings as written, for the editor.
+ * @typedef {object} SourceScene
+ * @property {SourceElement[]} elements
+ * @property {Record<string, SourceFile>} files
+ * @property {RawRecord} appState The saved editor settings as written, for the editor.
  */
-/** @typedef {{ elements: SourceElement[], files: Record<string, SourceFile>, appState: SourceAppState }} SourceScene */
 /** @typedef {{ ok: true, scene: SourceScene } | { ok: false, issues: SceneIssue[] }} ParsedScene */
 
 /** @param {unknown} value @returns {value is RawRecord} */
@@ -122,14 +122,13 @@ export function parseScene(scene) {
     }
   }
   const rawAppState = scene.appState ?? {};
-  /** @type {SourceAppState} */
-  const appState = { viewBackgroundColor: undefined, source: {} };
+  /** @type {RawRecord} */
+  let appState = {};
   if (!isObject(rawAppState)) issue(null, 'appState must be an object');
   else {
-    appState.source = rawAppState;
-    if (rawAppState.viewBackgroundColor !== undefined) {
-      if (typeof rawAppState.viewBackgroundColor === 'string') appState.viewBackgroundColor = rawAppState.viewBackgroundColor;
-      else issue(null, 'appState.viewBackgroundColor must be a string');
+    appState = rawAppState;
+    if (appState.viewBackgroundColor !== undefined && typeof appState.viewBackgroundColor !== 'string') {
+      issue(null, 'appState.viewBackgroundColor must be a string');
     }
   }
 

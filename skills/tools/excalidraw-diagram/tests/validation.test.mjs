@@ -42,7 +42,7 @@ test('the source model carries only established fields plus the raw record', () 
   assert.deepEqual([label.text, label.fontSize, label.fontFamily, label.lineHeight], ['Prepare clips', 20, 3, 1.25]);
   assert.equal(label.source.originalText, 'Prepare clips');
   assert.equal(parsed.scene.elements.find(e => e.id === 'flow').kind, 'other');
-  assert.deepEqual(parsed.scene.appState, { viewBackgroundColor: '#ffffff', source: { viewBackgroundColor: '#ffffff' } });
+  assert.deepEqual(parsed.scene.appState, { viewBackgroundColor: '#ffffff' });
 });
 test('embedded files keep their checked metadata and nothing else', () => {
   const scene = sceneFixture();

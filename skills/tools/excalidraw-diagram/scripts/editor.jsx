@@ -34,7 +34,7 @@ const element = id => {
  */
 const toExcalidraw = scene => {
   const records = /** @type {import('@excalidraw/excalidraw/element/types').ExcalidrawElement[]} */ (scene.elements.map(e => e.source));
-  const saved = /** @type {import('@excalidraw/excalidraw/data/types').ImportedDataState['appState']} */ (scene.appState.source);
+  const saved = /** @type {import('@excalidraw/excalidraw/data/types').ImportedDataState['appState']} */ (scene.appState);
   /** @type {import('@excalidraw/excalidraw/types').BinaryFiles} */
   const files = {};
   for (const [key, file] of Object.entries(scene.files)) {
