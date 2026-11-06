@@ -1,7 +1,15 @@
 // Contract between validate.mjs (Node) and editor.jsx (browser). Both sides
-// are type-checked against it with `npm run check`.
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
-import type { ScenePayload } from './scene.mjs';
+// are type-checked against it with `npm run check`. The browser receives the
+// SourceScene from scene.mjs and converts it to EditorScene itself.
+import type { ExcalidrawImperativeAPI, BinaryFiles, AppState } from '@excalidraw/excalidraw/types';
+import type { OrderedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
+import type { SourceScene } from './scene.mjs';
+
+export interface EditorScene {
+  elements: OrderedExcalidrawElement[];
+  files: BinaryFiles;
+  appState: Pick<Partial<AppState>, 'viewBackgroundColor'>;
+}
 
 export interface TextMetric {
   id: string;
@@ -29,8 +37,8 @@ declare global {
   interface Window {
     ready: boolean;
     editor: ExcalidrawImperativeAPI;
-    checkScene(scene: ScenePayload): Promise<RenderResult>;
-    mountScene(scene: ScenePayload): Promise<void>;
+    checkScene(scene: SourceScene): Promise<RenderResult>;
+    mountScene(scene: SourceScene): Promise<void>;
     setTheme(theme: 'light' | 'dark'): Promise<void>;
     summarizeScene(): LiveElementSummary[];
   }

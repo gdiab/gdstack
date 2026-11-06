@@ -46,10 +46,14 @@ Screenshots fit the scene into a 1600 by 1200 viewport by default. For large
 diagrams, use `--width 2400 --height 1800` or inspect detail crops. A complete
 scene at a tiny zoom is not evidence that its labels are readable.
 
-Automatic checks cover IDs, reciprocal text/arrow bindings, embedded images,
-text dimensions, and editor preservation of IDs and displayed text. They do
-not establish semantic accuracy, optimal layout, absence of every overlap,
-glyph coverage in every language, or compatibility with every editor version.
+Automatic checks cover IDs, element types, finite geometry, reciprocal
+text/arrow bindings, embedded files (`id`, `mimeType`, a `data:` URL and
+`created`), text dimensions, and editor preservation of IDs and displayed text.
+The tool reads only those fields; the editor receives each element exactly as
+written in the file and restores the rest itself, as it would on load. The
+checks do not establish semantic accuracy, optimal layout, absence of every
+overlap, glyph coverage in every language, or compatibility with every editor
+version.
 
 ## Regression checks
 
@@ -61,8 +65,8 @@ npm test
 ```
 
 `npm run check` type-checks the scripts against the contracts in `scene.mjs`
-(the parsed scene) and `bridge.d.ts` (what the Node side and the browser side
-exchange), using the pinned Excalidraw types. Tests include a neutral editable
+(the source model the parser establishes) and `bridge.d.ts` (what the Node side
+and the browser side exchange), using the pinned Excalidraw types. Tests include a neutral editable
 scene, malformed elements that must become findings rather than crashes, an
 undersized label that must fail even when its export succeeds, broken bindings,
 and both editor themes. No personal workflow records are included in the test

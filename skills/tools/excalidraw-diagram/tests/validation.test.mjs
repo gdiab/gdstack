@@ -15,18 +15,34 @@ test('a native scene parses to its live elements with no issues', () => {
   const parsed = parseScene(scene);
   assert.ok(parsed.ok, JSON.stringify(parsed));
   assert.deepEqual(parsed.scene.elements.map(e => e.id), ['prepare', 'prepare-label', 'train', 'train-label', 'flow']);
-  assert.deepEqual(Object.keys(parsed.scene), ['elements', 'files', 'appState']);
+  assert.deepEqual(parsed.scene.files, {});
 });
 test('malformed elements and bindings are issues, not crashes', () => {
   const scene = sceneFixture();
   scene.elements.push(null);
   scene.elements[0].boundElements = { id: 'prepare-label', type: 'text' };
   scene.elements[4].startBinding = 'prepare';
+  scene.elements.push({ ...scene.elements[2], id: 'untyped', type: undefined });
+  scene.files = { stray: { dataURL: 'data:image/png;base64,AA' } };
+  scene.appState = { viewBackgroundColor: 42 };
   const messages = issuesOf(scene).map(i => i.message);
   assert.ok(messages.includes('Element is not an object'));
+  assert.ok(messages.includes('Element has no type'));
   assert.ok(messages.some(m => m.startsWith('boundElements must be')));
   assert.ok(messages.some(m => m.startsWith('startBinding must be')));
+  assert.ok(messages.some(m => m.startsWith('File stray must have')));
+  assert.ok(messages.some(m => m.startsWith('appState.viewBackgroundColor')));
   assert.equal(parseScene({ type: 'excalidraw', version: 1, elements: [] }).ok, false);
+});
+test('the source model carries only established fields plus the raw record', () => {
+  const parsed = parseScene(sceneFixture());
+  assert.ok(parsed.ok);
+  const label = parsed.scene.elements.find(e => e.id === 'prepare-label');
+  assert.equal(label.kind, 'text');
+  assert.deepEqual([label.text, label.fontSize, label.fontFamily, label.lineHeight], ['Prepare clips', 20, 3, 1.25]);
+  assert.equal(label.source.originalText, 'Prepare clips');
+  assert.equal(parsed.scene.elements.find(e => e.id === 'flow').kind, 'other');
+  assert.deepEqual(parsed.scene.appState, { viewBackgroundColor: '#ffffff' });
 });
 test('broken or deleted connector targets cannot pass', () => {
   const scene = sceneFixture();

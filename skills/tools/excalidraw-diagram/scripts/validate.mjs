@@ -112,7 +112,7 @@ export async function validate(source, out, { width = 1600, height = 1200 } = {}
     report.loadedElements = live.length;
     for (const e of scene.elements) {
       const actual = live.find(item => item.id === e.id);
-      if (!actual || actual.type !== e.type || (e.type === 'text' && actual.text !== e.text)) {
+      if (!actual || actual.type !== e.type || (e.kind === 'text' && actual.text !== e.text)) {
         report.editorIssues.push({ id: e.id, message: 'Editor did not preserve element ID, type, or displayed text' });
       }
     }

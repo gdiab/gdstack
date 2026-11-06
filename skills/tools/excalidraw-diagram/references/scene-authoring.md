@@ -8,7 +8,8 @@ elements. Use it when practical instead of recreating schema defaults. Its
 types are the schema reference for the pinned version.
 
 Preserve IDs during edits. Preserve the scene's embedded `files` entries and
-image `fileId` references. Keep the source artifact separate from previews and
+image `fileId` references; each file entry carries `id`, `mimeType`, a `data:`
+URL and a `created` timestamp, as Excalidraw writes them. Keep the source artifact separate from previews and
 validation output. Do not flatten existing editable content into an image.
 
 ## Text geometry

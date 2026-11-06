@@ -1,8 +1,8 @@
 // Browser side of the bridge declared in bridge.d.ts. Every entry point
-// receives a ScenePayload from scene.mjs: live elements only.
+// receives a SourceScene from scene.mjs and converts it once, in toExcalidraw.
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { Excalidraw, exportToSvg, exportToCanvas, FONT_FAMILY } from '@excalidraw/excalidraw';
+import { Excalidraw, exportToSvg, exportToCanvas, restoreElements, FONT_FAMILY } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 
 const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -16,10 +16,26 @@ const element = id => {
   return found;
 };
 
+/**
+ * The one place source records become Excalidraw objects. restoreElements is
+ * what the editor runs on load: it fills defaults for the fields the file
+ * omits and keeps text width and height as written. Its parameter is typed
+ * for complete elements, and BinaryFiles brands the strings the parser already
+ * checked, so this is where the source model meets the vendor types.
+ * @param {import('./scene.mjs').SourceScene} scene
+ * @returns {import('./bridge.d.ts').EditorScene}
+ */
+const toExcalidraw = scene => {
+  const records = /** @type {import('@excalidraw/excalidraw/element/types').ExcalidrawElement[]} */ (
+    /** @type {unknown} */ (scene.elements.map(e => e.source)));
+  const files = /** @type {import('@excalidraw/excalidraw/types').BinaryFiles} */ (
+    /** @type {unknown} */ (scene.files));
+  return { elements: restoreElements(records, null), files, appState: { viewBackgroundColor: scene.appState.viewBackgroundColor } };
+};
+
 window.checkScene = async scene => {
-  const args = { elements: scene.elements, files: scene.files, appState: {
-    ...scene.appState, exportBackground: true, exportWithDarkMode: false, exportEmbedScene: false,
-  } };
+  const { elements, files, appState } = toExcalidraw(scene);
+  const args = { elements, files, appState: { ...appState, exportBackground: true, exportWithDarkMode: false, exportEmbedScene: false } };
   // The exported SVG contains embedded font-face rules. Attach it so the
   // document registers those faces before measuring or drawing on canvas.
   const svg = await exportToSvg(args);
@@ -31,8 +47,9 @@ window.checkScene = async scene => {
   const metrics = [];
   const context = document.createElement('canvas').getContext('2d');
   if (!context) throw new Error('Canvas 2D context is unavailable');
+  // Measure the source text against the source box, not the restored element.
   for (const e of scene.elements) {
-    if (e.type !== 'text') continue;
+    if (e.kind !== 'text') continue;
     const family = families[e.fontFamily];
     if (!family) throw new Error(`Unknown font family on ${e.id}: ${e.fontFamily}`);
     const font = `${e.fontSize}px "${family}"`;
@@ -52,10 +69,11 @@ window.checkScene = async scene => {
 };
 
 window.mountScene = async scene => {
+  const { elements, files, appState } = toExcalidraw(scene);
   const root = createRoot(element('root'));
   await new Promise(resolve => root.render(
     <Excalidraw
-      initialData={{ ...scene, appState: { ...scene.appState, theme: 'light' } }}
+      initialData={{ elements, files, appState: { ...appState, theme: 'light' } }}
       excalidrawAPI={api => { window.editor = api; resolve(undefined); }}
       UIOptions={{ canvasActions: { loadScene: false, export: false, saveAsImage: false } }}
     />,
