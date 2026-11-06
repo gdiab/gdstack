@@ -25,7 +25,8 @@ The output directory must be new or empty. The tool creates:
 - `preview.svg` and `preview.png`: official Excalidraw exports.
 - `editor-light.png` and `editor-dark.png`: actual editor screenshots.
 - `report.json`: source hash, dependency versions, structural findings, source
-  text measurements, and editor element preservation results.
+  text measurements, editor element preservation results, and the settings the
+  editor loaded (background, grid, theme).
 
 Exit 0 means the automatic checks passed. Exit 1 means the scene failed checks;
 inspect `report.json` and available images. Exit 2 means the check could not

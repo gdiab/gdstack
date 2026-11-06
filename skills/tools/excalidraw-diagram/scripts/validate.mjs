@@ -20,6 +20,7 @@ import { parseScene } from './scene.mjs';
  * @property {string[]} runtimeErrors
  * @property {string[]} screenshots
  * @property {number} [loadedElements]
+ * @property {import('./bridge.d.ts').EditorSettings} [editorSettings]
  * @property {'passed' | 'failed' | 'incomplete'} status
  * @property {string} visualInspection
  */
@@ -110,6 +111,7 @@ export async function validate(source, out, { width = 1600, height = 1200 } = {}
     }
     const live = await page.evaluate(() => window.summarizeScene());
     report.loadedElements = live.length;
+    report.editorSettings = await page.evaluate(() => window.editorSettings());
     for (const e of scene.elements) {
       const actual = live.find(item => item.id === e.id);
       if (!actual || actual.type !== e.type || (e.kind === 'text' && actual.text !== e.text)) {

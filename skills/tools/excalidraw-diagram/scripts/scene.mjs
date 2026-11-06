@@ -27,8 +27,12 @@
 /** @typedef {SourceElementBase & { kind: 'image', fileId: string }} SourceImage */
 /** @typedef {SourceElementBase & { kind: 'other' }} SourceOther */
 /** @typedef {SourceText | SourceImage | SourceOther} SourceElement */
-/** @typedef {{ id: string, mimeType: string, dataURL: string, created: number }} SourceFile */
-/** @typedef {{ viewBackgroundColor: string | undefined }} SourceAppState */
+/** @typedef {{ id: string, mimeType: string, dataURL: string, created: number, lastRetrieved: number | undefined, version: number | undefined }} SourceFile */
+/**
+ * @typedef {object} SourceAppState
+ * @property {string | undefined} viewBackgroundColor
+ * @property {RawRecord} source The saved editor settings as written, for the editor.
+ */
 /** @typedef {{ elements: SourceElement[], files: Record<string, SourceFile>, appState: SourceAppState }} SourceScene */
 /** @typedef {{ ok: true, scene: SourceScene } | { ok: false, issues: SceneIssue[] }} ParsedScene */
 
@@ -42,9 +46,22 @@ const isArrowBinding = value => isObject(value) && typeof value.elementId === 's
 const isFinite = value => typeof value === 'number' && Number.isFinite(value);
 /** @param {unknown} value @returns {value is number} */
 const isPositive = value => isFinite(value) && value > 0;
-/** @param {unknown} value @returns {value is SourceFile} */
-const isFile = value => isObject(value) && typeof value.id === 'string' && typeof value.mimeType === 'string' &&
-  typeof value.dataURL === 'string' && value.dataURL.startsWith('data:') && isFinite(value.created);
+
+/**
+ * Narrow one embedded file entry, or name its defect.
+ * @param {unknown} value
+ * @returns {{ file: SourceFile } | { problem: string }}
+ */
+function parseFile(value) {
+  if (!isObject(value)) return { problem: 'must be an object' };
+  const { id, mimeType, dataURL, created, lastRetrieved, version } = value;
+  if (typeof id !== 'string' || typeof mimeType !== 'string' || typeof dataURL !== 'string' || !dataURL.startsWith('data:') || !isFinite(created)) {
+    return { problem: 'must have id, mimeType, a data: URL and created' };
+  }
+  if (lastRetrieved !== undefined && !isFinite(lastRetrieved)) return { problem: 'lastRetrieved must be a number' };
+  if (version !== undefined && !isFinite(version)) return { problem: 'version must be a number' };
+  return { file: { id, mimeType, dataURL, created, lastRetrieved, version } };
+}
 
 /**
  * Narrow one live record into the source model, or name its first defect.
@@ -98,18 +115,22 @@ export function parseScene(scene) {
   const rawFiles = scene.files ?? {};
   if (!isObject(rawFiles)) issue(null, 'files must be an object');
   else {
-    for (const [key, file] of Object.entries(rawFiles)) {
-      if (isFile(file)) files[key] = file;
-      else issue(null, `File ${key} must have id, mimeType, a data: URL and created`);
+    for (const [key, value] of Object.entries(rawFiles)) {
+      const parsed = parseFile(value);
+      if ('problem' in parsed) issue(null, `File ${key} ${parsed.problem}`);
+      else files[key] = parsed.file;
     }
   }
   const rawAppState = scene.appState ?? {};
   /** @type {SourceAppState} */
-  const appState = { viewBackgroundColor: undefined };
+  const appState = { viewBackgroundColor: undefined, source: {} };
   if (!isObject(rawAppState)) issue(null, 'appState must be an object');
-  else if (rawAppState.viewBackgroundColor !== undefined) {
-    if (typeof rawAppState.viewBackgroundColor === 'string') appState.viewBackgroundColor = rawAppState.viewBackgroundColor;
-    else issue(null, 'appState.viewBackgroundColor must be a string');
+  else {
+    appState.source = rawAppState;
+    if (rawAppState.viewBackgroundColor !== undefined) {
+      if (typeof rawAppState.viewBackgroundColor === 'string') appState.viewBackgroundColor = rawAppState.viewBackgroundColor;
+      else issue(null, 'appState.viewBackgroundColor must be a string');
+    }
   }
 
   /** @type {Map<string, SourceElement>} */

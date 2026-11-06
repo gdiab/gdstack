@@ -2,12 +2,16 @@
 // receives a SourceScene from scene.mjs and converts it once, in toExcalidraw.
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { Excalidraw, exportToSvg, exportToCanvas, restoreElements, FONT_FAMILY } from '@excalidraw/excalidraw';
+import { Excalidraw, exportToSvg, exportToCanvas, restoreElements, restoreAppState, FONT_FAMILY, MIME_TYPES } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 
 const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 /** @type {Record<number, string>} */
 const families = Object.fromEntries(Object.entries(FONT_FAMILY).map(([name, id]) => [id, name]));
+/** @type {string[]} */
+const fileMimeTypes = Object.values(MIME_TYPES).filter(mime => mime.startsWith('image/') || mime === MIME_TYPES.binary);
+/** @param {string} mime @returns {mime is import('@excalidraw/excalidraw/types').BinaryFileData['mimeType']} */
+const isFileMimeType = mime => fileMimeTypes.includes(mime);
 
 /** @param {string} id @returns {HTMLElement} */
 const element = id => {
@@ -17,20 +21,29 @@ const element = id => {
 };
 
 /**
- * The one place source records become Excalidraw objects. restoreElements is
- * what the editor runs on load: it fills defaults for the fields the file
- * omits and keeps text width and height as written. Its parameter is typed
- * for complete elements, and BinaryFiles brands the strings the parser already
- * checked, so this is where the source model meets the vendor types.
+ * The one place source records become Excalidraw objects, through the same
+ * restore functions the editor runs on load. They fill defaults for fields
+ * the file omits and keep text width and height as written. The parser checks
+ * the fields this validator reads; the rest of the schema is Excalidraw's,
+ * and the editor preservation check and page errors report what it rejects.
+ * restoreElements and restoreAppState are typed for complete data although
+ * they accept the file's records, so this is where the source model meets
+ * the vendor types. File strings are checked, then branded.
  * @param {import('./scene.mjs').SourceScene} scene
  * @returns {import('./bridge.d.ts').EditorScene}
  */
 const toExcalidraw = scene => {
-  const records = /** @type {import('@excalidraw/excalidraw/element/types').ExcalidrawElement[]} */ (
-    /** @type {unknown} */ (scene.elements.map(e => e.source)));
-  const files = /** @type {import('@excalidraw/excalidraw/types').BinaryFiles} */ (
-    /** @type {unknown} */ (scene.files));
-  return { elements: restoreElements(records, null), files, appState: { viewBackgroundColor: scene.appState.viewBackgroundColor } };
+  const records = /** @type {import('@excalidraw/excalidraw/element/types').ExcalidrawElement[]} */ (scene.elements.map(e => e.source));
+  const saved = /** @type {import('@excalidraw/excalidraw/data/types').ImportedDataState['appState']} */ (scene.appState.source);
+  /** @type {import('@excalidraw/excalidraw/types').BinaryFiles} */
+  const files = {};
+  for (const [key, file] of Object.entries(scene.files)) {
+    if (!isFileMimeType(file.mimeType)) throw new Error(`Unsupported file MIME type on ${key}: ${file.mimeType}`);
+    files[key] = { id: /** @type {import('@excalidraw/excalidraw/element/types').FileId} */ (file.id), mimeType: file.mimeType,
+      dataURL: /** @type {import('@excalidraw/excalidraw/types').DataURL} */ (file.dataURL),
+      created: file.created, lastRetrieved: file.lastRetrieved, version: file.version };
+  }
+  return { elements: restoreElements(records, null), files, appState: restoreAppState(saved, null) };
 };
 
 window.checkScene = async scene => {
@@ -89,5 +102,10 @@ window.setTheme = async theme => {
 
 window.summarizeScene = () => window.editor.getSceneElements()
   .map(e => ({ id: e.id, type: e.type, text: e.type === 'text' ? e.text : undefined }));
+
+window.editorSettings = () => {
+  const { viewBackgroundColor, gridModeEnabled, gridSize, gridStep, theme } = window.editor.getAppState();
+  return { viewBackgroundColor, gridModeEnabled, gridSize, gridStep, theme };
+};
 
 window.ready = true;

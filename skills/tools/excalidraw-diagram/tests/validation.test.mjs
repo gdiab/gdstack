@@ -42,7 +42,16 @@ test('the source model carries only established fields plus the raw record', () 
   assert.deepEqual([label.text, label.fontSize, label.fontFamily, label.lineHeight], ['Prepare clips', 20, 3, 1.25]);
   assert.equal(label.source.originalText, 'Prepare clips');
   assert.equal(parsed.scene.elements.find(e => e.id === 'flow').kind, 'other');
-  assert.deepEqual(parsed.scene.appState, { viewBackgroundColor: '#ffffff' });
+  assert.deepEqual(parsed.scene.appState, { viewBackgroundColor: '#ffffff', source: { viewBackgroundColor: '#ffffff' } });
+});
+test('embedded files keep their checked metadata and nothing else', () => {
+  const scene = sceneFixture();
+  scene.files = { f1: { id: 'f1', mimeType: 'image/png', dataURL: 'data:image/png;base64,AA', created: 1, version: 2, extra: true } };
+  const parsed = parseScene(scene);
+  assert.ok(parsed.ok);
+  assert.deepEqual(parsed.scene.files, { f1: { id: 'f1', mimeType: 'image/png', dataURL: 'data:image/png;base64,AA', created: 1, lastRetrieved: undefined, version: 2 } });
+  scene.files.f1.version = 'two';
+  assert.ok(issuesOf(scene).some(i => i.message === 'File f1 version must be a number'));
 });
 test('broken or deleted connector targets cannot pass', () => {
   const scene = sceneFixture();
@@ -69,11 +78,15 @@ test('local exports and both editor themes pass, but undersized source text fail
   try {
     const file = path.join(dir, 'fixture.excalidraw');
     const scene = sceneFixture();
+    scene.appState.gridModeEnabled = true;
+    scene.appState.gridSize = 25;
     const original = JSON.stringify(scene);
     await writeFile(file, original);
     const passed = await validate(file, path.join(dir, 'valid'));
     assert.equal(passed.status, 'passed', JSON.stringify(passed));
     assert.equal(passed.loadedElements, scene.elements.length);
+    // Saved editor settings reach the editor; the theme is the screenshot override.
+    assert.deepEqual(passed.editorSettings, { viewBackgroundColor: '#ffffff', gridModeEnabled: true, gridSize: 25, gridStep: 5, theme: 'dark' });
     assert.deepEqual(passed.screenshots, ['editor-light.png', 'editor-dark.png']);
     assert.equal(await readFile(file, 'utf8'), original);
     for (const name of ['preview.svg', 'preview.png', 'editor-light.png', 'editor-dark.png']) {

@@ -3,12 +3,13 @@
 // SourceScene from scene.mjs and converts it to EditorScene itself.
 import type { ExcalidrawImperativeAPI, BinaryFiles, AppState } from '@excalidraw/excalidraw/types';
 import type { OrderedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
+import type { RestoredDataState } from '@excalidraw/excalidraw/data/restore';
 import type { SourceScene } from './scene.mjs';
 
 export interface EditorScene {
   elements: OrderedExcalidrawElement[];
   files: BinaryFiles;
-  appState: Pick<Partial<AppState>, 'viewBackgroundColor'>;
+  appState: RestoredDataState["appState"];
 }
 
 export interface TextMetric {
@@ -27,6 +28,9 @@ export interface RenderResult {
   metrics: TextMetric[];
 }
 
+/** Saved settings the editor reports after loading, as evidence for the report. */
+export type EditorSettings = Pick<AppState, 'viewBackgroundColor' | 'gridModeEnabled' | 'gridSize' | 'gridStep' | 'theme'>;
+
 export interface LiveElementSummary {
   id: string;
   type: string;
@@ -41,5 +45,6 @@ declare global {
     mountScene(scene: SourceScene): Promise<void>;
     setTheme(theme: 'light' | 'dark'): Promise<void>;
     summarizeScene(): LiveElementSummary[];
+    editorSettings(): EditorSettings;
   }
 }
