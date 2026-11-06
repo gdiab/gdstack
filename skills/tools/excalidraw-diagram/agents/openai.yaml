@@ -1,0 +1,6 @@
+interface:
+  display_name: "Excalidraw Diagrams"
+  short_description: "Editable diagrams checked in the actual editor"
+  default_prompt: "Use $excalidraw-diagram to create an editable workflow diagram and verify its labels and connectors."
+policy:
+  allow_implicit_invocation: false
