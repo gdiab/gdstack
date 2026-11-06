@@ -20,7 +20,7 @@ Run this from a fresh session, pointed at the session to review. If the user nam
    python3 scripts/session_digest.py <session-id-or-log-path>
    ```
 
-   If the session looks expensive or very long, also run the `session-usage` skill if it is installed. Keep the digest out of commits, pull requests and shared documents, because masking is best effort.
+   If the session looks expensive or very long, also run the `session-usage` skill if it is installed. Keep the digest out of commits, pull requests and shared documents, because masking is best effort. Failed calls show the masked start of their error. If the digest still lacks something you need, name the gap in your report.
 
 3. **Find candidates.** Look for moments in the digest where the session lost time or went wrong, then read the project files involved:
    - A file or fact took many calls to find: add a navigation pointer.
