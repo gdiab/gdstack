@@ -20,8 +20,8 @@ def tool_use(tool_id, name, **tool_input):
     return {"type": "assistant", "timestamp": TIME, "message": {"content": [{"type": "text", "text": ASSISTANT_TEXT}, block]}}
 
 
-def tool_result(tool_id, error=False):
-    block = {"type": "tool_result", "tool_use_id": tool_id, "content": TOOL_OUTPUT, "is_error": error}
+def tool_result(tool_id, error=False, text=TOOL_OUTPUT):
+    block = {"type": "tool_result", "tool_use_id": tool_id, "content": text, "is_error": error}
     return {"type": "user", "timestamp": TIME, "message": {"content": [block]}}
 
 
@@ -125,11 +125,36 @@ class Claude(LogCase):
         digest = sd.read_digest(self.write("s1.jsonl", [user('<note id="1"/> real request')]))
         self.assertEqual(len(digest.users), 1)
 
-    def test_assistant_text_and_tool_output_never_appear(self):
-        path = self.write("s1.jsonl", [tool_use("t1", "Bash", command="ls"), tool_result("t1", error=True), user("hello there")])
+    def test_assistant_text_and_successful_tool_output_never_appear(self):
+        path = self.write("s1.jsonl", [tool_use("t1", "Bash", command="ls"), tool_result("t1"), user("hello there")])
         report = sd.render(sd.read_digest(path))
         self.assertNotIn(ASSISTANT_TEXT, report)
         self.assertNotIn(TOOL_OUTPUT, report)
+
+    def test_failed_call_shows_the_start_of_its_error(self):
+        path = self.write("s1.jsonl", [tool_use("t1", "Bash", command="ls"), tool_result("t1", error=True, text="exit code 1: no such file")])
+        report = sd.render(sd.read_digest(path))
+        self.assertIn("error: exit code 1: no such file", report)
+
+    def test_error_in_a_block_list_is_read(self):
+        result = tool_result("t1", error=True)
+        result["message"]["content"][0]["content"] = [{"type": "text", "text": "listed error"}]
+        report = sd.render(sd.read_digest(self.write("s1.jsonl", [tool_use("t1", "Bash", command="ls"), result])))
+        self.assertIn("error: listed error", report)
+
+    def test_error_text_is_masked_and_cut(self):
+        text = "connect failed: postgres://admin:s3cret@db.example.com/app password=hunter2 " + "x " * 200
+        path = self.write("s1.jsonl", [tool_use("t1", "Bash", command="ls"), tool_result("t1", error=True, text=text)])
+        digest = sd.read_digest(path)
+        report = sd.render(digest)
+        self.assertNotIn("s3cret", report)
+        self.assertNotIn("hunter2", report)
+        self.assertLessEqual(len(digest.failures[0][3]), sd.ERROR_CHARS)
+
+    def test_a_secret_crossing_the_cut_is_masked(self):
+        text = "x" * (sd.ERROR_CHARS - 20) + " password=abcdefghijklmnopqrstuvwxyz"
+        path = self.write("s1.jsonl", [tool_use("t1", "Bash", command="ls"), tool_result("t1", error=True, text=text)])
+        self.assertNotIn("abcdefgh", sd.render(sd.read_digest(path)))
 
     def test_quoted_secret_in_a_command_is_masked_in_the_report(self):
         calls = [tool_use(f"t{index}", "Bash", command="mysql --password 'two words' -e 'select 1'") for index in range(3)]

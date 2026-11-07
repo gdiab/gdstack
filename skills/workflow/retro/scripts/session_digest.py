@@ -4,9 +4,10 @@
   session_digest.py 2df69d30             find a session by id or id prefix
   session_digest.py path/to/session.jsonl
 
-Prints tool counts, failed calls, repeated calls and the start of each user
-message. Masking is best effort, so keep the digest out of commits and shared
-documents. Assistant text and tool output are never printed.
+Prints tool counts, failed calls with the start of each error, repeated calls
+and the start of each user message. Masking is best effort, so keep the digest
+out of commits and shared documents. Assistant text and the output of
+successful calls are never printed.
 """
 from __future__ import annotations
 
@@ -23,6 +24,8 @@ from typing import Any, Iterator, Optional
 
 LABEL_CHARS = 90
 USER_CHARS = 160
+ERROR_CHARS = 120
+ERROR_SCAN_CHARS = 2000  # Mask this much, so a secret that starts near the cut is still whole.
 MAX_FAILURES = 15
 MAX_REPEATS = 10
 MAX_USER_MESSAGES = 40
@@ -64,7 +67,7 @@ class Digest:
     end: Optional[float] = None
     tools: Counter = field(default_factory=Counter)
     failed: Counter = field(default_factory=Counter)
-    failures: list[tuple[float, str, str]] = field(default_factory=list)
+    failures: list[tuple[float, str, str, str]] = field(default_factory=list)
     labels: Counter = field(default_factory=Counter)
     users: list[tuple[float, int, str]] = field(default_factory=list)
     failures_known: bool = True
@@ -121,7 +124,8 @@ class ClaudeReader:
                 if block.get("type") == "tool_result" and block.get("is_error"):
                     name, label = self.calls.get(block.get("tool_use_id"), ("?", ""))
                     self.digest.failed[name] += 1
-                    self.digest.failures.append((time, name, label))
+                    error = mask(block_text(block.get("content"))[:ERROR_SCAN_CHARS], ERROR_CHARS)
+                    self.digest.failures.append((time, name, label, error))
             if not record.get("isMeta"):
                 self.digest.add_user(time, block_text(content))
 
@@ -209,7 +213,8 @@ def render(digest: Digest) -> str:
     lines += [f"  {count:>5} ({digest.failed[name]})  {name}" for name, count in digest.tools.most_common()]
     shown_failures = min(MAX_FAILURES, len(digest.failures))
     lines += ["", f"Failed calls, {shown_failures} of {len(digest.failures)}:" if digest.failures_known else "Failed calls: not available, Codex logs have no failure flag."]
-    lines += [f"  {clock(time)}  {name}: {label}" for time, name, label in digest.failures[:MAX_FAILURES]]
+    for time, name, label, error in digest.failures[:MAX_FAILURES]:
+        lines += [f"  {clock(time)}  {name}: {label}", f"      error: {error}"]
     repeats = [(label, count) for label, count in digest.labels.most_common(MAX_REPEATS) if count >= REPEAT_MIN]
     lines += ["", f"Calls repeated {REPEAT_MIN} or more times:"] + [f"  {count:>5}  {label}" for label, count in repeats]
     shown = spread(digest.users, MAX_USER_MESSAGES)
