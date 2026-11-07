@@ -42,9 +42,9 @@ Build a list of locations to survey. Check, in this order, and do not stop at th
 
 The most common miss is #3: planning docs that live in a sibling repo or a non-obvious subdirectory rather than the project's main `docs/` folder. Stabilization plans, architecture decision records, and roadmaps often live alongside the code they describe rather than in central documentation. Always look outside the obvious location before concluding the corpus is exhausted.
 
-### 3. Dispatch an Explore subagent
+### 3. Dispatch a read-only research subagent
 
-Use the `Explore` subagent type at `very thorough`. Pass:
+In Claude Code, use the `Explore` subagent type at `very thorough`. In another agent, use its read-only subagent or delegation mechanism, with the same brief. Pass:
 
 - **Context summary**: what is already established in the session that the agent cannot see
 - **Explicit file list**: at least the top ~20 most likely relevant, with primary/secondary tiers
