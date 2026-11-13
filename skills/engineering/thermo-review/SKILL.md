@@ -213,7 +213,7 @@ This is a maintainability and structure review, not a correctness review. Don't 
 
 ## Who reviews
 
-Review with fresh eyes. Run the review in a subagent that reads this skill file itself and receives only the scope, not the implementer's reasoning, so its judgement isn't anchored on why the code was written that way. If the user asks for a second model (for example `codex exec`), give it the same skill file and scope. If no subagent is available, review in the current session and say so. The review is read-only: don't modify files, commit or push.
+Review with fresh eyes. Run the review in a subagent that reads this skill file itself and receives only the scope, not the implementer's reasoning, so its judgement isn't anchored on why the code was written that way. From round 2, it also receives the earlier reviews, what changed since, and any proposed residuals with their evidence (see Re-review); it judges that evidence itself. Never send arguments for the implementation or instructions that widen the review. If the user asks for a second model (for example `codex exec`), give it the same skill file and scope. If no subagent is available, review in the current session and say so. The review is read-only: don't modify files, commit or push.
 
 ## Ambition
 
@@ -245,4 +245,15 @@ When reviewing a follow-up to an earlier review of the same work:
 2. For each earlier finding, say **resolved**, **partially resolved** or **not resolved**, with `file:line` evidence.
 3. Flag anything the follow-up newly orphaned or broke structurally: dead parameters, unused dependencies, leftover config, stale docs.
 4. Don't open new fronts on code the follow-up didn't touch, unless it's a presumptive blocker you missed before. Say so plainly if it is.
-5. End with the verdict.
+5. For each **proposed residual** (see below), accept or reject the classification yourself. Accept it only when the evidence shows the trigger falls outside the stated callers and operating conditions; deliberate misuse or an injected fault is not proof by itself, because an exposed interface or a real outage can produce either. An accepted residual doesn't block on that behavior. It never waives a structural finding under the approval bar.
+6. End with the verdict.
+
+## Running the loop (implementer)
+
+The rounds above are for the reviewer. These are for whoever fixes the findings and asks for the next round. Most extra rounds come from this side.
+
+1. **Fix the family, not the reproduction.** For each finding, name the invariant or structural principle it breaks, find every path that touches it, and fix the class. Apply the reviewer's proposed restructuring, or show with evidence how an alternative fixes the same class; a patch for the one reported example is neither. Add regression coverage where behavior is affected, and report the paths and the checks you ran. A round whose findings are siblings of the last round's means the previous fix was a patch.
+2. **Freeze scope while the loop runs.** Don't add features, consumers or new modes between rounds. A gap found mid-loop goes to a follow-on change with its own review. New code added mid-loop brings its own rounds of findings.
+3. **Keep the round prompt to the skill.** Send the reviewer what "Who reviews" lists and nothing that widens the review, such as "look especially for siblings" or a correctness checklist. The reviewer already reports classes (Findings format); finding every instance in scope is the implementer's work in step 1. If a correctness or safety review is wanted, run it as a separate review with a stated threat model: which callers, which inputs, which failures are in scope.
+4. **Propose residuals; don't declare them.** When a finding needs a trigger outside the supported callers and operating conditions (a hostile callback, a fault injected on one specific line, a credential deliberately placed in a label), propose it as a residual in the next round: the trigger, and the evidence that supported use can't produce it. The reviewer accepts or rejects it (Re-review, item 5). Record accepted residuals and their assumptions in the PR description or the project's safety notes, and reopen one when its assumptions change.
+5. **Keep rounds out of the main context.** Run each fix round in a subagent or fresh session seeded with the diff, the latest review and the open findings. It returns the commit and what it left open, so the main session's context doesn't grow by a full round each time.
